@@ -1,0 +1,36 @@
+record_type,gallery_id,edition_id,fair_date,day_processed,artist_id,artist_name,artwork_id,artwork_title,gallery_views,artwork_views,unique_artwork_viewers,favourites,inquiries
+gallery,G001,E001,2026-10-14,true,,,,,120,,,,
+artwork,G001,E001,2026-10-14,true,AR01,Artist A,A001,Artwork A1,,40,30,5,0
+artwork,G001,E001,2026-10-14,true,AR01,Artist A,A002,Artwork A2,,25,20,3,0
+artwork,G001,E001,2026-10-14,true,AR02,Artist B,B001,Artwork B1,,30,23,3,0
+artwork,G001,E001,2026-10-14,true,AR02,Artist B,B002,Artwork B2,,20,15,2,0
+artwork,G001,E001,2026-10-14,true,AR03,Artist C,C001,Artwork C1,,0,0,0,0
+artwork,G001,E001,2026-10-14,true,AR03,Artist C,C002,Artwork C2,,15,12,1,0
+gallery,G001,E001,2026-10-15,true,,,,,165,,,,
+artwork,G001,E001,2026-10-15,true,AR01,Artist A,A001,Artwork A1,,80,45,12,0
+artwork,G001,E001,2026-10-15,true,AR01,Artist A,A002,Artwork A2,,35,26,4,0
+artwork,G001,E001,2026-10-15,true,AR02,Artist B,B001,Artwork B1,,45,24,4,0
+artwork,G001,E001,2026-10-15,true,AR02,Artist B,B002,Artwork B2,,21,16,2,0
+artwork,G001,E001,2026-10-15,true,AR03,Artist C,C001,Artwork C1,,10,8,1,0
+artwork,G001,E001,2026-10-15,true,AR03,Artist C,C002,Artwork C2,,20,,2,0
+gallery,G001,E001,2026-10-16,true,,,,,158,,,,
+artwork,G001,E001,2026-10-16,true,AR01,Artist A,A001,Artwork A1,,76,50,11,1
+artwork,G001,E001,2026-10-16,true,AR01,Artist A,A002,Artwork A2,,32,24,4,0
+artwork,G001,E001,2026-10-16,true,AR02,Artist B,B001,Artwork B1,,32,23,3,0
+artwork,G001,E001,2026-10-16,true,AR02,Artist B,B002,Artwork B2,,20,15,2,0
+artwork,G001,E001,2026-10-16,true,AR03,Artist C,C001,Artwork C1,,9,7,1,0
+artwork,G001,E001,2026-10-16,true,AR03,Artist C,C002,Artwork C2,,19,14,2,0
+gallery,G001,E001,2026-10-17,true,,,,,172,,,,
+artwork,G001,E001,2026-10-17,true,AR01,Artist A,A001,Artwork A1,,90,60,13,1
+artwork,G001,E001,2026-10-17,true,AR01,Artist A,A002,Artwork A2,,38,28,5,1
+artwork,G001,E001,2026-10-17,true,AR02,Artist B,B001,Artwork B1,,31,22,3,0
+artwork,G001,E001,2026-10-17,true,AR02,Artist B,B002,Artwork B2,,20,15,2,0
+artwork,G001,E001,2026-10-17,true,AR03,Artist C,C001,Artwork C1,,11,9,1,0
+artwork,G001,E001,2026-10-17,true,AR03,Artist C,C002,Artwork C2,,18,13,2,0
+gallery,G001,E001,2026-10-18,false,,,,,210,,,,
+artwork,G001,E001,2026-10-18,false,AR01,Artist A,A001,Artwork A1,,150,95,20,4
+artwork,G001,E001,2026-10-18,false,AR01,Artist A,A002,Artwork A2,,42,31,6,1
+artwork,G001,E001,2026-10-18,false,AR02,Artist B,B001,Artwork B1,,34,25,3,0
+artwork,G001,E001,2026-10-18,false,AR02,Artist B,B002,Artwork B2,,22,17,2,0
+artwork,G001,E001,2026-10-18,false,AR03,Artist C,C001,Artwork C1,,15,12,2,0
+artwork,G001,E001,2026-10-18,false,AR03,Artist C,C002,Artwork C2,,21,15,3,0

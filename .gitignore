@@ -1,0 +1,23 @@
+# --- Secrets: never commit ---
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+
+# --- Local Python environment ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# --- Generated artifacts ---
+.pytest_cache/
+.coverage
+htmlcov/
+evals/results/
+
+# --- OS / editor / local tool settings ---
+.claude/
+.DS_Store
+.idea/
+.vscode/
