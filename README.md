@@ -12,6 +12,12 @@ streamlit run app.py
 
 The app opens at http://localhost:8501. Stop it with `Ctrl+C` in the terminal.
 
+## Run the automated tests
+
+```bash
+.venv/bin/python -m pytest -v
+```
+
 ## First-time setup
 
 ```bash
