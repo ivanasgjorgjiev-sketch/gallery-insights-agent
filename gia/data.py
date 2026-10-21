@@ -46,8 +46,8 @@ class ProcessedData:
     gallery_id: str
     edition_id: str
     source_file: str
-    gallery_daily: pd.DataFrame   # fair_date, gallery_views
-    artwork_daily: pd.DataFrame   # fair_date, artist/artwork fields, artwork metrics
+    gallery_daily: pd.DataFrame   # fair_date, gallery_views, source_line
+    artwork_daily: pd.DataFrame   # fair_date, artist/artwork fields, artwork metrics, source_line
     processed_dates: list[str]
     excluded_dates: list[str]     # in-scope dates with day_processed=false
     total_rows: int
@@ -159,6 +159,7 @@ def load_processed_data(
     issues = _validate(raw)
     if issues:
         raise DataValidationError(issues)
+    raw["source_line"] = raw.index + 2  # line number in the CSV, for provenance
 
     in_scope = raw[(raw["gallery_id"] == gallery_id) & (raw["edition_id"] == edition_id)]
     if in_scope.empty:
@@ -168,11 +169,13 @@ def load_processed_data(
     if eligible.empty:
         raise DataValidationError([f"no processed days found for {gallery_id}/{edition_id}"])
 
-    gallery_daily = eligible[eligible["record_type"] == "gallery"][["fair_date", "gallery_views"]].copy()
+    gallery_daily = eligible[eligible["record_type"] == "gallery"][
+        ["fair_date", "gallery_views", "source_line"]
+    ].copy()
     gallery_daily["gallery_views"] = gallery_daily["gallery_views"].astype("int64")
 
     artwork_daily = eligible[eligible["record_type"] == "artwork"][
-        ["fair_date"] + ARTWORK_TEXT_FIELDS + ARTWORK_METRICS
+        ["fair_date"] + ARTWORK_TEXT_FIELDS + ARTWORK_METRICS + ["source_line"]
     ].copy()
     for col in ARTWORK_METRICS:
         # Nullable integers: blank -> <NA> (unknown), never 0.
