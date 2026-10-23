@@ -161,6 +161,28 @@ def explain_pattern(pattern: dict) -> str:
     return (text + support_sentence(pattern)).strip()
 
 
+def short_rationale(pattern: dict) -> str:
+    """A concise, deterministic reason for a card. The tiles already show the numbers, so this avoids
+    repeating them and only says what makes the pattern notable (or not)."""
+    cat = pattern["category"]
+    kc = pattern.get("key_comparison")
+    values = [d["value"] for d in pattern["daily"]]
+    later = ""
+    if kc:
+        i = next(n for n, d in enumerate(pattern["daily"]) if d["date"] == kc["new_date"])
+        later = ", ".join(fmt_value(v) for v in values[i + 1:])
+    supports = [METRIC_NAMES[s["metric"]].lower() for s in pattern.get("supporting_metrics", [])
+                if s["qualifies_as_support"]]
+    if cat == "sustained_growth":
+        return (f"The increase held on later days ({later})"
+                + (f" and {_list(supports)} rose with it." if supports else "."))
+    if cat == "temporary_spike":
+        return f"It fell back close to the starting level on later days ({later}), so it was a one-day jump, not a trend."
+    if cat == "zero_baseline_change":
+        return "It started from zero, so only the change in numbers is meaningful, not a percentage."
+    return explain_pattern(pattern)
+
+
 def not_surfaced(published_artworks: set[str]) -> list[dict]:
     """Deterministic explanation for every artwork that is not a published insight."""
     out = []

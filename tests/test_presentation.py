@@ -89,15 +89,49 @@ def test_only_approved_strength_labels_are_published(label):
     assert not published and withheld
 
 
-@pytest.mark.parametrize("step", [
-    "Review the artwork internally to understand what may have coincided with the increase.",
-    "Investigate what caused the jump.",
-    "Find the drivers behind this change.",
+@pytest.mark.parametrize("step,policy", [
+    ("Review the artwork internally to understand what may have coincided with the increase.", ["cause_seeking"]),
+    ("Investigate what caused the jump.", ["cause_seeking"]),
+    ("Find the drivers behind this change.", ["cause_seeking"]),
+    ("Offer a discount to interested buyers.", ["commercial_action"]),
+    ("Contact collectors and find out why views rose.", ["cause_seeking", "commercial_action"]),
 ])
-def test_cause_seeking_next_steps_are_rejected(step):
+def test_noncompliant_next_step_is_replaced_when_facts_are_valid(step, policy):
     published, withheld = agent.publication_gate([{**A1, "suggested_next_step": step}])
+    assert not withheld
+    entry = published[0]
+    assert entry["insight"]["suggested_next_step"] == tools.SAFE_NEXT_STEP
+    assert entry["next_step_substitution"] == {"policy": policy, "replacement": tools.SAFE_NEXT_STEP}
+    assert entry["insight"]["observed_signal"] == A1["observed_signal"]   # nothing else changed
+
+
+def test_substitution_never_repairs_factual_errors():
+    bad = {**A1, "suggested_next_step": "Find out what coincided with the increase.",
+           "metric_changes": [dict(A1["metric_changes"][0], percentage_change=90.0)]}
+    published, withheld = agent.publication_gate([bad])
     assert not published
-    assert any("neutral and non-causal" in e for e in withheld[0]["errors"])
+    errors = " ".join(withheld[0]["errors"])
+    assert "percentage_change claimed 90.0" in errors and "neutral and non-causal" in errors
+
+
+@pytest.mark.parametrize("step", ["This will sell within the week.", "Expect 999 more views tomorrow."])
+def test_factual_claims_inside_next_step_still_fail(step):
+    published, withheld = agent.publication_gate([{**A1, "suggested_next_step": step}])
+    assert not published and withheld
+
+
+def test_substitution_is_recorded_in_trace_and_survives_recording(tmp_path):
+    bad_step = {**A1, "suggested_next_step": "Find out what coincided with the increase."}
+    result, _ = run([final([bad_step])])
+    gate = next(s for s in result.trace if s.kind == "gate")
+    assert gate.result["next_step_substitutions"] == [{
+        "insight_id": "INS-A001-SUSTAINED_GROWTH-20261014_20261015", "policy": ["cause_seeking"],
+        "replacement": tools.SAFE_NEXT_STEP}]
+    path = snapshot.save_snapshot(result, tmp_path / "snap.json")
+    assert "coincided" not in path.read_text()            # the non-compliant wording is never saved
+    replay = snapshot.load_snapshot(path)
+    assert replay.published[0]["next_step_substitution"]["policy"] == ["cause_seeking"]
+    assert replay.published[0]["insight"]["suggested_next_step"] == tools.SAFE_NEXT_STEP
 
 
 def test_neutral_next_step_is_accepted():
@@ -173,7 +207,8 @@ def test_view_evidence_toggle_in_demo(monkeypatch, tmp_path):
     assert not at.exception
     assert any(m.value == "##### Evidence" for m in at.markdown)
     assert any(b.label == "Hide evidence" for b in at.button)
-    assert at.session_state["evidence_viewed"] == {"INS-A001-SUSTAINED_GROWTH-20261014_20261015"}
+    state = at.session_state["review"]
+    assert [i for i, r in state.reviews.items() if r.evidence_viewed] == ["INS-A001-SUSTAINED_GROWTH-20261014_20261015"]
 
 
 def test_model_summary_is_not_displayed(monkeypatch):

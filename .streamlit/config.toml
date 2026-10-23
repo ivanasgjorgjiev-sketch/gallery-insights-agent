@@ -1,0 +1,3 @@
+[theme]
+# Calm accent colour (Streamlit's default red can read as an error on selected buttons).
+primaryColor = "#2f5d8a"

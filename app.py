@@ -15,7 +15,7 @@ import anthropic
 import pandas as pd
 import streamlit as st
 
-from gia import agent, config, evidence, explain, snapshot
+from gia import agent, config, evidence, explain, review, snapshot
 from gia.data import DataValidationError, load_processed_data
 from gia.display_names import edition_label, gallery_name
 
@@ -88,48 +88,97 @@ def render_evidence(ev: dict) -> None:
     with st.container(border=True):
         st.markdown("##### Evidence")
         st.dataframe([{"": k, "Value": v} for k, v in ev["context"].items()], hide_index=True)
-        st.markdown(f"**Pattern found: {ev['pattern_label']}.** {ev['why_highlighted']}")
         st.markdown("**Daily source records**")
         st.dataframe(ev["daily"], hide_index=True)
         if ev["comparison"]:
             old, new = ev["comparison_dates"]
             st.markdown(f"**Key comparison: {explain.fmt_date_long(old)} → {explain.fmt_date_long(new)}**")
             st.dataframe(ev["comparison"], hide_index=True)
-        st.markdown("**Screening checks** (transparent rules, applied the same way to every artwork)")
-        st.dataframe(ev["checks"], hide_index=True)
-        st.markdown("**Validation of this insight's numbers**")
-        st.dataframe(ev["verified_claims"], hide_index=True)
-        st.caption(ev["artist_context"])
-        st.markdown("**How to read this evidence**")
-        for note in ev["notes"]:
-            st.markdown(f"- {note}")
+        with st.expander("Technical details: screening checks, validation and notes"):
+            st.markdown(f"**Pattern found: {ev['pattern_label']}.** {ev['why_highlighted']}")
+            st.markdown("**Screening checks** (transparent rules, applied the same way to every artwork)")
+            st.dataframe(ev["checks"], hide_index=True)
+            st.markdown("**Validation of this insight's numbers**")
+            st.dataframe(ev["verified_claims"], hide_index=True)
+            st.markdown(f"**Agent's description** (validated against the source)  \n{ev['agent_description']}")
+            st.caption(ev["artist_context"])
+            st.markdown("**How to read this evidence**")
+            for note in ev["notes"]:
+                st.markdown(f"- {note}")
 
 
-def render_insight_card(rank: int, entry: dict) -> None:
+def current_review() -> review.ReviewState | None:
+    """The review state for the analysis on screen (created if missing or out of date)."""
+    result = st.session_state.get("analysis")
+    if result is None:
+        return None
+    state = st.session_state.get("review")
+    if state is None or state.insight_ids != [p["insight_id"] for p in result.published]:
+        state = st.session_state["review"] = review.start_review(result)
+    return state
+
+
+def show_analysis(result: agent.AnalysisResult) -> None:
+    """Put a new analysis on screen and start a fresh review for it."""
+    st.session_state["analysis"] = result
+    st.session_state["review"] = review.start_review(result)
+    st.session_state["evidence_open"] = set()
+
+
+def render_feedback(entry: dict, state: review.ReviewState) -> None:
+    insight_id, title = entry["insight_id"], entry["pattern"]["artwork_title"]
+    current = state.reviews[insight_id]
+    st.markdown("**Was this insight useful?**")
+    cols = st.columns([3, 2, 3])
+    for col, (option, label) in zip(cols, review.FEEDBACK_OPTIONS.items()):
+        chosen = current.feedback == option
+        if col.button(("✓ " if chosen else "") + label, key=f"feedback-{option}-{insight_id}",
+                      type="primary" if chosen else "secondary"):
+            state.record_feedback(insight_id, option)
+            st.rerun()
+    if current.feedback:
+        st.success(f"Feedback saved for the {title} insight: **{review.FEEDBACK_OPTIONS[current.feedback]}** "
+                   f"(this session only). {review.NOT_AUTHORISATION_NOTE}")
+        if not current.evidence_viewed:
+            st.caption("To complete the review of this insight, also open its evidence.")
+    elif not current.evidence_viewed:
+        st.caption("Tip: view the evidence before rating. The review is complete once you have viewed the "
+                   "evidence and given feedback on the same insight.")
+
+
+def render_insight_card(rank: int, entry: dict, state: review.ReviewState) -> None:
     ins, pattern, insight_id = entry["insight"], entry["pattern"], entry["insight_id"]
     opened = st.session_state.setdefault("evidence_open", set())
+    progress = state.reviews[insight_id]
     with st.container(border=True):
         st.markdown(f"#### {rank}. {ins['title']}")
-        st.markdown(f"{STRENGTH_BADGES[ins['confidence']]} :gray-badge[{explain.CATEGORY_LABELS[pattern['category']]}]")
+        status = []
+        if progress.evidence_viewed:
+            status.append(":violet-badge[Evidence viewed]")
+        if progress.feedback:
+            status.append(f":violet-badge[Rated: {review.FEEDBACK_OPTIONS[progress.feedback]}]")
+        st.markdown(" ".join([STRENGTH_BADGES[ins["confidence"]],
+                              f":gray-badge[{explain.CATEGORY_LABELS[pattern['category']]}]"] + status))
         st.caption(f"{pattern['artwork_title']} ({pattern['artwork_id']}) · {pattern['artist_name']} · "
                    f"Insight ID `{insight_id}`")
         render_key_metrics(pattern)
-        st.markdown(f"**What the agent found** (every number checked against the source data)  \n"
-                    f"{ins['observed_signal']}")
-        st.markdown(f"**Why it was highlighted**  \n{explain.explain_pattern(pattern)}")
-        st.markdown(f"**Why it may matter**  \n{ins['why_it_may_matter']}")
+        st.markdown(f"**Why this matters**  \n{explain.short_rationale(pattern)} {ins['why_it_may_matter']}")
         st.markdown(f"**Evidence strength: {ins['confidence']}.** {explain.STRENGTH_TEXT[ins['confidence']]}")
         st.markdown("**Limitations**  \n" + "\n".join(f"- {lim}" for lim in ins["limitations"]))
         if ins.get("suggested_next_step"):
             st.markdown(f"**For your consideration** (the agent takes no action)  \n{ins['suggested_next_step']}")
+            if entry.get("next_step_substitution"):
+                st.caption("ℹ️ The agent's own suggestion did not meet the neutral-action policy, so it was "
+                           "replaced with this standard wording.")
         is_open = insight_id in opened
         if st.button("Hide evidence" if is_open else "View evidence", key=f"evidence-{insight_id}"):
             opened.symmetric_difference_update({insight_id})
             if not is_open:
-                st.session_state.setdefault("evidence_viewed", set()).add(insight_id)
+                state.record_evidence_view(insight_id)
             st.rerun()
         if is_open:
             render_evidence(evidence.build_evidence(entry))
+        render_feedback(entry, state)
 
 
 st.set_page_config(page_title="Gallery Insights Agent", page_icon="🖼️", layout="wide")
@@ -195,7 +244,7 @@ if mode == "demo":
     st.caption("🎬 Demo mode: shows a recorded live AI investigation. No new AI analysis is run and no "
                "AI requests are made." if recording else f"Demo mode: {demo_problem}")
     if clicked and recording:
-        st.session_state["analysis"] = recording
+        show_analysis(recording)
 else:
     key = config.api_key()
     model = config.model()
@@ -238,7 +287,7 @@ if mode == "live" and clicked:
                                     on_step=lambda s: status.markdown(step_line(s)))
         status.update(label=f"Investigation {result.status.replace('_', ' ')}",
                       state="complete" if result.status == "completed" else "error", expanded=False)
-    st.session_state["analysis"] = result
+    show_analysis(result)
 
 result: agent.AnalysisResult | None = st.session_state.get("analysis")
 if result:
@@ -259,8 +308,23 @@ if result:
                    + explain.STRENGTH_NOTE)
         if not result.published:
             st.info("No finding met the evidence bar. Nothing is presented rather than inventing an insight.")
+        state = current_review()
+        if result.published:
+            p = state.progress()
+            if p["complete"]:
+                titles = ", ".join(e["pattern"]["artwork_title"] for e in result.published
+                                   if e["insight_id"] in p["completed_ids"])
+                st.success(f"✅ **Daily analysis review complete.** You viewed the evidence and recorded your "
+                           f"feedback for: {titles}. Nothing has been sent or changed; any follow-up action is "
+                           "your own decision, outside this prototype.")
+            else:
+                st.info(f"**Review progress:** evidence viewed for {p['evidence_viewed']} of {p['insights']} "
+                        f"insights · feedback recorded for {p['rated']} of {p['insights']}. The review is complete "
+                        "once you have viewed the evidence and given feedback on the same insight.")
+            st.caption(f"Useful-insight rate this session: {p['useful']} of {p['insights']} validated insights "
+                       f"rated useful. {review.SESSION_ONLY_NOTE}")
         for rank, entry in enumerate(result.published, start=1):
-            render_insight_card(rank, entry)
+            render_insight_card(rank, entry, state)
 
         if result.not_surfaced:
             with st.expander(f"Not surfaced as insights ({len(result.not_surfaced)}): why"):

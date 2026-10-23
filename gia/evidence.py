@@ -41,7 +41,7 @@ def build_evidence(entry: dict) -> dict:
         row = {"Date": explain.fmt_date_long(date)}
         for m, name in explain.METRIC_NAMES.items():
             row[name] = explain.fmt_value(metrics["metrics"][m]["daily"][i]["value"])
-        row["Source (CSV line)"] = metrics["metrics"]["artwork_views"]["daily"][i]["source_line"]
+        row["Source (CSV line)"] = str(metrics["metrics"]["artwork_views"]["daily"][i]["source_line"])
         row["Status"] = "Processed · used"
         daily.append(row)
     for e in overview["excluded_dates"]:
@@ -101,6 +101,7 @@ def build_evidence(entry: dict) -> dict:
         "checks": checks,
         "verified_claims": [{"Claim checked": c["claim"], "Result": "✅ matches source" if c["verified"]
                              else "❌ mismatch"} for c in entry["checked_claims"]],
+        "agent_description": insight["observed_signal"],
         "artist_context": (f"All artworks by {artist['artist_name']}: {artist_views['calculation']} artwork-view "
                            "events across the processed days (events, not people)."),
         "notes": notes,

@@ -49,8 +49,10 @@ def _sanitize_step(step: TraceStep) -> dict:
         if isinstance(step.result, dict):
             s["result"] = {"insight_id": step.result.get("insight_id"), "valid": step.result.get("valid"),
                            "error_count": len(step.result.get("errors", []))}
-    if step.kind == "gate":
-        s["result"] = None                    # withheld drafts' errors may quote unvalidated text
+    if step.kind == "gate":                   # withheld drafts' errors may quote unvalidated text: keep only
+        subs = (step.result or {}).get("next_step_substitutions", []) if isinstance(step.result, dict) else []
+        s["result"] = {"next_step_substitutions": [{"insight_id": x["insight_id"], "policy": x["policy"]}
+                                                   for x in subs]}   # the policy codes, never the original text
     return s
 
 
@@ -59,7 +61,8 @@ def build_snapshot(result: AnalysisResult) -> dict:
         raise SnapshotError("A replayed investigation cannot be recorded again.")
     if result.status != "completed":
         raise SnapshotError(f"Only completed live investigations can be recorded (status: {result.status}).")
-    published = [{"insight_id": p["insight_id"], "insight": p["insight"]} for p in result.published]
+    published = [{"insight_id": p["insight_id"], "insight": p["insight"],
+                  "next_step_substitution": p.get("next_step_substitution")} for p in result.published]
     not_surfaced = explain.not_surfaced({p["insight"]["artwork_id"] for p in published})
     return {
         "snapshot_version": SNAPSHOT_VERSION,
@@ -111,6 +114,9 @@ def load_snapshot(path: Path | None = None) -> AnalysisResult:
     published, withheld = publication_gate([p["insight"] for p in snap["published"]])
     if withheld:
         raise SnapshotError("A recorded insight no longer passes evidence validation; replay refused.")
+    recorded_subs = {p["insight_id"]: p.get("next_step_substitution") for p in snap["published"]}
+    for p in published:   # the saved insight already carries the safe wording; restore the record of the swap
+        p["next_step_substitution"] = p["next_step_substitution"] or recorded_subs.get(p["insight_id"])
     result = AnalysisResult(status="completed", model=snap["model"], replayed=True,
                             recorded_at=snap["recorded_at"], tool_calls=snap["tool_calls"],
                             model_turns=snap["model_turns"], usage=snap["usage"])

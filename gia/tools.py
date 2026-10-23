@@ -462,6 +462,7 @@ PROHIBITED_CLAIMS = [
 ]
 PROHIBITED_ACTIONS = r"discount|reduce (the )?price|change (the )?price|raise (the )?price|pricing decision|" \
                      r"contact (the )?collectors|email (the )?collectors|send (a )?message"
+SAFE_NEXT_STEP = "Review the engagement evidence and decide whether further investigation is worthwhile."
 CAUSE_SEEKING_STEP = (r"coincid|what (may |might |could )?(have )?(caused|driven|drove|triggered|explains?)|"
                       r"why (the |this |it |views |engagement )|reasons? (for|behind)|\bdrivers?\b|attribut")
 NEGATION = re.compile(r"\b(not|no|never|without|cannot|can't|doesn't|does not|isn't|is not|nor|neither)\b[^.;]*$",
@@ -590,19 +591,29 @@ def validate_evidence(insight: dict) -> dict:
             if float(num) not in allowed_numbers:
                 errors.append(f"{field}: number {num} is not supported by the verified evidence")
 
+    # Next-step *action policy* is checked separately from factual validity: the publication gate may
+    # replace a non-compliant next step with SAFE_NEXT_STEP, but never repairs factual errors.
+    next_step_errors: list[str] = []
     for field in TEXT_FIELDS:
         for pattern, label in PROHIBITED_CLAIMS:
             for hit in _asserted(pattern, text_parts[field]):
-                errors.append(f"{field}: unsupported {label} ('{hit}')")
+                if field == "suggested_next_step" and label == "causal claim":
+                    # In a next step, "what caused..." is a cause-seeking action, not a factual claim.
+                    next_step_errors.append(f"suggested_next_step: must be neutral and non-causal, "
+                                            f"not a search for causes ('{hit}')")
+                else:
+                    errors.append(f"{field}: unsupported {label} ('{hit}')")
     for hit in _asserted(PROHIBITED_ACTIONS, text_parts["suggested_next_step"]):
-        errors.append(f"suggested_next_step: commercial action outside the agent's authority ('{hit}')")
+        next_step_errors.append(f"suggested_next_step: commercial action outside the agent's authority ('{hit}')")
     for hit in _asserted(CAUSE_SEEKING_STEP, text_parts["suggested_next_step"]):
-        errors.append(f"suggested_next_step: must be neutral and non-causal, not a search for causes ('{hit}')")
+        next_step_errors.append(f"suggested_next_step: must be neutral and non-causal, not a search for causes ('{hit}')")
 
     return {
-        "valid": not errors,
+        "valid": not errors and not next_step_errors,
         "insight_id": build_insight_id(insight),
-        "errors": errors,
+        "errors": errors + next_step_errors,
+        "factual_errors": errors,
+        "next_step_errors": next_step_errors,
         "checked_claims": checked,
         "scope": {"gallery_id": data.gallery_id, "edition_id": data.edition_id,
                   "processed_dates": data.processed_dates, "excluded_dates": data.excluded_dates},
