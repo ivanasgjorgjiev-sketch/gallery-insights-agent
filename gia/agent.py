@@ -26,7 +26,6 @@ from gia import tools
 from gia.config import PRICES_PER_MTOK
 
 MAX_MODEL_TURNS = 12
-MAX_OUTPUT_TOKENS = 16000
 
 # --- Tool definitions sent to Claude ----------------------------------------------
 
@@ -181,8 +180,10 @@ class TraceStep:
 
 @dataclass
 class AnalysisResult:
-    status: str            # completed | limit_reached | refused | failed
+    status: str            # completed | limit_reached | budget_exceeded | refused | failed
     model: str
+    replayed: bool = False         # True when shown from a recorded snapshot (DEMO mode)
+    recorded_at: str | None = None
     summary: str = ""
     published: list[dict] = field(default_factory=list)
     withheld: list[dict] = field(default_factory=list)
@@ -311,7 +312,10 @@ def verify_model(client: anthropic.Anthropic, model: str) -> str:
 
 
 def run_analysis(client: anthropic.Anthropic, model: str, effort: str = "medium", max_tool_calls: int = 15,
+                 max_output_tokens: int = 8000, max_cost_usd: float = 0.75,
                  on_step: Callable[[TraceStep], None] | None = None) -> AnalysisResult:
+    """Run one bounded investigation. Bounds: max_tool_calls tool executions, MAX_MODEL_TURNS
+    requests, max_output_tokens per response, and a stop once estimated spend passes max_cost_usd."""
     result = AnalysisResult(status="failed", model=model)
     messages: list[dict] = [{"role": "user", "content": USER_REQUEST}]
 
@@ -325,7 +329,7 @@ def run_analysis(client: anthropic.Anthropic, model: str, effort: str = "medium"
     final: dict | None = None
     for _ in range(MAX_MODEL_TURNS):
         request: dict[str, Any] = dict(
-            model=model, max_tokens=MAX_OUTPUT_TOKENS, system=SYSTEM_PROMPT, tools=TOOL_DEFINITIONS,
+            model=model, max_tokens=max_output_tokens, system=SYSTEM_PROMPT, tools=TOOL_DEFINITIONS,
             messages=messages, cache_control={"type": "ephemeral"},
             output_config={"effort": effort, "format": {"type": "json_schema", "schema": FINAL_OUTPUT_SCHEMA}},
         )
@@ -356,6 +360,16 @@ def run_analysis(client: anthropic.Anthropic, model: str, effort: str = "medium"
         notes = " ".join(b.text for b in response.content if b.type == "text" and response.stop_reason == "tool_use")
         log("model_turn", f"Claude turn {result.model_turns}: {response.stop_reason}", detail=notes.strip(),
             duration_ms=int((time.monotonic() - started) * 1000))
+
+        spent = result.estimated_cost_usd
+        if spent is None:
+            result.error = f"No price configured for model '{model}', so spending cannot be capped."
+        elif spent > max_cost_usd:
+            result.status = "budget_exceeded"
+            result.error = f"Estimated spend ${spent:.2f} passed the ${max_cost_usd:.2f} per-analysis cap."
+        if result.error:
+            log("error", "Cost safeguard stopped the analysis", detail=result.error)
+            return result
 
         if response.stop_reason == "refusal":
             result.status, result.error = "refused", "The model declined this request."

@@ -24,7 +24,9 @@ def test_live_analysis_end_to_end():
     model = config.model()
     assert agent.verify_model(client, model) == model
 
-    result = agent.run_analysis(client, model, effort=config.effort(), max_tool_calls=config.max_tool_calls())
+    result = agent.run_analysis(client, model, effort=config.effort(), max_tool_calls=config.max_tool_calls(),
+                                max_output_tokens=config.max_output_tokens(),
+                                max_cost_usd=config.max_cost_per_analysis_usd())
 
     out = Path(__file__).resolve().parent.parent / "evals" / "results" / "live_m3_run.json"
     out.parent.mkdir(parents=True, exist_ok=True)

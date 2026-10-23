@@ -9,10 +9,14 @@ from __future__ import annotations
 
 import os
 
+MODES = ("demo", "live")
+DEFAULT_MODE = "demo"               # safe default: no API calls unless GIA_MODE=live is set server-side
 DEFAULT_MODEL = "claude-sonnet-5-5"
 DEFAULT_EFFORT = "medium"
 DEFAULT_MAX_TOOL_CALLS = 15
 DEFAULT_MAX_ANALYSES_PER_SESSION = 5
+DEFAULT_MAX_OUTPUT_TOKENS = 8000    # hard cap per API response (includes thinking)
+DEFAULT_MAX_COST_PER_ANALYSIS_USD = 0.75  # analysis stops if estimated spend passes this
 
 # Published per-million-token prices (USD) used only for the cost estimate shown in the app.
 PRICES_PER_MTOK = {
@@ -32,6 +36,20 @@ def _setting(name: str) -> str | None:
     except Exception:  # no secrets file, or not running under Streamlit
         pass
     return None
+
+
+def mode() -> str:
+    """'live' only when explicitly configured; anything else (unset, typo) is 'demo'."""
+    value = (_setting("GIA_MODE") or DEFAULT_MODE).strip().lower()
+    return value if value in MODES else DEFAULT_MODE
+
+
+def max_output_tokens() -> int:
+    return int(_setting("GIA_MAX_OUTPUT_TOKENS") or DEFAULT_MAX_OUTPUT_TOKENS)
+
+
+def max_cost_per_analysis_usd() -> float:
+    return float(_setting("GIA_MAX_COST_PER_ANALYSIS_USD") or DEFAULT_MAX_COST_PER_ANALYSIS_USD)
 
 
 def api_key() -> str | None:

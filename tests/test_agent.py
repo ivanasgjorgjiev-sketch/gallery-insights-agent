@@ -129,6 +129,22 @@ def test_request_shape():
     assert req["output_config"]["format"]["type"] == "json_schema"
     assert "fallbacks" not in req and "betas" not in req   # no automatic model fallback
     assert "tool_choice" not in req                       # auto; forced tool use is not supported
+    assert req["max_tokens"] == 8000                      # explicit per-response output cap
+
+
+def test_per_analysis_cost_cap_stops_the_loop():
+    # Each fake turn costs (1000 * $2 + 200 * $10) / 1M = $0.004.
+    result, client = run(happy_script(), max_cost_usd=0.005)
+    assert result.status == "budget_exceeded"
+    assert len(client.requests) == 2
+    assert result.published == []
+
+
+def test_unpriced_model_is_refused_after_first_turn():
+    client = FakeClient(happy_script())
+    result = agent.run_analysis(client, "some-unpriced-model")
+    assert result.status == "failed" and "cannot be capped" in result.error
+    assert len(client.requests) == 1
 
 
 def test_usage_and_cost_are_tracked():
