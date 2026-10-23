@@ -39,7 +39,13 @@ def _setting(name: str) -> str | None:
 
 
 def mode() -> str:
-    """'live' only when explicitly configured; anything else (unset, typo) is 'demo'."""
+    """'live' only when explicitly configured; anything else (unset, typo) is 'demo'.
+
+    GIA_FORCE_DEMO=1 always wins. Streamlit copies root-level secrets into os.environ at startup
+    (overwriting a GIA_MODE set in the shell), so a kill switch with its own name is needed to
+    guarantee demo mode, e.g. for local previews or as a second lock on the public deployment."""
+    if (_setting("GIA_FORCE_DEMO") or "").strip() == "1":
+        return "demo"
     value = (_setting("GIA_MODE") or DEFAULT_MODE).strip().lower()
     return value if value in MODES else DEFAULT_MODE
 
@@ -50,6 +56,11 @@ def max_output_tokens() -> int:
 
 def max_cost_per_analysis_usd() -> float:
     return float(_setting("GIA_MAX_COST_PER_ANALYSIS_USD") or DEFAULT_MAX_COST_PER_ANALYSIS_USD)
+
+
+def demo_snapshot_path() -> str | None:
+    """Optional server-side override for the DEMO recording file (used for local previews)."""
+    return _setting("GIA_DEMO_SNAPSHOT")
 
 
 def api_key() -> str | None:

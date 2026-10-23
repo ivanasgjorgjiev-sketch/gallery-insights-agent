@@ -23,6 +23,23 @@ def test_mode_defaults_to_demo(monkeypatch, value, expected):
     assert config.mode() == expected
 
 
+def test_force_demo_overrides_live(monkeypatch):
+    settings = {"GIA_MODE": "live", "GIA_FORCE_DEMO": "1"}
+    monkeypatch.setattr(config, "_setting", lambda name: settings.get(name))
+    assert config.mode() == "demo"
+
+
+def test_force_demo_beats_secrets_promoted_into_environment(monkeypatch, tmp_path):
+    # Reproduces the real failure: Streamlit copies secrets.toml (GIA_MODE="live") into os.environ.
+    monkeypatch.setenv("GIA_MODE", "live")
+    monkeypatch.setenv("GIA_FORCE_DEMO", "1")
+    assert config.mode() == "demo"
+    at = AppTest.from_file(APP)
+    monkeypatch.setattr(anthropic, "Anthropic", lambda *a, **k: pytest.fail("API client created"))
+    at.run(timeout=30)
+    assert any("Demo mode" in c.value for c in at.caption)
+
+
 # --- Snapshots ------------------------------------------------------------------------
 
 def completed_run(**kw):

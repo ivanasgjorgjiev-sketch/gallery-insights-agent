@@ -462,6 +462,8 @@ PROHIBITED_CLAIMS = [
 ]
 PROHIBITED_ACTIONS = r"discount|reduce (the )?price|change (the )?price|raise (the )?price|pricing decision|" \
                      r"contact (the )?collectors|email (the )?collectors|send (a )?message"
+CAUSE_SEEKING_STEP = (r"coincid|what (may |might |could )?(have )?(caused|driven|drove|triggered|explains?)|"
+                      r"why (the |this |it |views |engagement )|reasons? (for|behind)|\bdrivers?\b|attribut")
 NEGATION = re.compile(r"\b(not|no|never|without|cannot|can't|doesn't|does not|isn't|is not|nor|neither)\b[^.;]*$",
                       re.IGNORECASE)
 
@@ -594,6 +596,8 @@ def validate_evidence(insight: dict) -> dict:
                 errors.append(f"{field}: unsupported {label} ('{hit}')")
     for hit in _asserted(PROHIBITED_ACTIONS, text_parts["suggested_next_step"]):
         errors.append(f"suggested_next_step: commercial action outside the agent's authority ('{hit}')")
+    for hit in _asserted(CAUSE_SEEKING_STEP, text_parts["suggested_next_step"]):
+        errors.append(f"suggested_next_step: must be neutral and non-causal, not a search for causes ('{hit}')")
 
     return {
         "valid": not errors,

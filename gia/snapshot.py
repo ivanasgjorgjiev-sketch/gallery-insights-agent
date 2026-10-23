@@ -20,7 +20,7 @@ import json
 import re
 from pathlib import Path
 
-from gia import tools
+from gia import explain
 from gia.agent import AnalysisResult, TraceStep, publication_gate
 from gia.data import DEFAULT_CSV
 
@@ -54,19 +54,13 @@ def _sanitize_step(step: TraceStep) -> dict:
     return s
 
 
-def _not_surfaced(published_artworks: set[str]) -> list[dict]:
-    """Deterministic category and explanation (from the tools) for every artwork not published."""
-    return [{"artwork_id": p["artwork_id"], "category": p["category"], "reason": p["explanation"]}
-            for p in tools.detect_engagement_patterns()["patterns"] if p["artwork_id"] not in published_artworks]
-
-
 def build_snapshot(result: AnalysisResult) -> dict:
     if result.replayed:
         raise SnapshotError("A replayed investigation cannot be recorded again.")
     if result.status != "completed":
         raise SnapshotError(f"Only completed live investigations can be recorded (status: {result.status}).")
     published = [{"insight_id": p["insight_id"], "insight": p["insight"]} for p in result.published]
-    not_surfaced = _not_surfaced({p["insight"]["artwork_id"] for p in published})
+    not_surfaced = explain.not_surfaced({p["insight"]["artwork_id"] for p in published})
     return {
         "snapshot_version": SNAPSHOT_VERSION,
         "recorded_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
@@ -99,8 +93,13 @@ def save_snapshot(result: AnalysisResult, path: Path = DEFAULT_SNAPSHOT, api_key
     return path
 
 
-def load_snapshot(path: Path = DEFAULT_SNAPSHOT) -> AnalysisResult:
-    """Rebuild a recorded investigation for display. Makes no API calls."""
+def load_snapshot(path: Path | None = None) -> AnalysisResult:
+    """Rebuild a recorded investigation for display. Makes no API calls.
+
+    The file is DEFAULT_SNAPSHOT unless the server-side setting GIA_DEMO_SNAPSHOT names another one."""
+    if path is None:
+        from gia import config
+        path = Path(config.demo_snapshot_path() or DEFAULT_SNAPSHOT)
     if not path.exists():
         raise SnapshotError("No recorded investigation is available yet.")
     snap = json.loads(path.read_text())
@@ -116,9 +115,8 @@ def load_snapshot(path: Path = DEFAULT_SNAPSHOT) -> AnalysisResult:
                             recorded_at=snap["recorded_at"], tool_calls=snap["tool_calls"],
                             model_turns=snap["model_turns"], usage=snap["usage"])
     result.published = published
-    result.not_surfaced = snap["not_surfaced"]
+    # Explanations are regenerated from the tools, so DEMO and LIVE always show the same deterministic text.
+    result.not_surfaced = explain.not_surfaced({p["insight"]["artwork_id"] for p in published})
     result.trace = [TraceStep(**s) for s in snap["trace"]]
-    n = len(published)
-    result.summary = (f"{n} validated insight{'s' if n != 1 else ''}; {len(result.not_surfaced)} other "
-                      f"artwork(s) not surfaced; {snap['withheld_count']} draft(s) withheld by validation.")
+    result.withheld_count = snap["withheld_count"]
     return result
