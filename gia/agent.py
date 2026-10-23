@@ -49,11 +49,11 @@ INSIGHT_SCHEMA = _obj({
     "signal_type": {"type": "string", "enum": CATEGORIES,
                     "description": "Must equal the category detect_engagement_patterns gave this artwork."},
     "artwork_id": {"type": "string"},
-    "artist_id": _nullable({"type": "string"}),
     "title": {"type": "string"},
     "observed_signal": {"type": "string"},
     "why_it_may_matter": {"type": "string"},
-    "suggested_next_step": _nullable({"type": "string"}),
+    "suggested_next_step": {"type": "string",
+                            "description": "Optional next step for the manager's consideration; empty string if none."},
     "confidence": {"type": "string", "enum": CONFIDENCE_LABELS,
                    "description": "sustained_growth: copy evidence_strength from detect_engagement_patterns; "
                                   "any other signal_type: 'qualified'."},
@@ -107,8 +107,11 @@ TOOL_DEFINITIONS = [
                     "errors and the stable insight_id.",
      "input_schema": _obj({"insight": INSIGHT_SCHEMA})},
 ]
+# Strict schemas guarantee valid arguments, but the API caps their combined complexity (e.g. at most 16
+# nullable/union fields across all strict schemas in a request). validate_evidence takes a large nested
+# insight and re-checks everything itself, so it is left non-strict; check_arguments still screens it.
 for _t in TOOL_DEFINITIONS:
-    _t["strict"] = True
+    _t["strict"] = _t["name"] != "validate_evidence"
 
 TOOL_FUNCTIONS: dict[str, Callable[..., dict]] = {
     "get_processed_data": tools.get_processed_data,
@@ -347,7 +350,7 @@ def run_analysis(client: anthropic.Anthropic, model: str, effort: str = "medium"
         except anthropic.RateLimitError:
             result.error = "Rate limit or spending limit reached. Try again later."
         except anthropic.APIStatusError as e:
-            result.error = f"Anthropic API error (HTTP {e.status_code})."
+            result.error = f"Anthropic API error (HTTP {e.status_code}): {e.message}"
         except anthropic.APIConnectionError:
             result.error = "Could not reach the Anthropic API. Check the internet connection."
         if result.error:

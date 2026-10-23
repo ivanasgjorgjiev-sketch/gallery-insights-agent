@@ -42,6 +42,9 @@ def test_live_analysis_end_to_end():
     tools_used = [s.tool for s in result.trace if s.kind == "tool_call"]
     assert "detect_engagement_patterns" in tools_used
     assert all(t in agent.TOOL_FUNCTIONS for t in tools_used)
-    # Every published insight passed the deterministic gate; Day 5 never appears.
-    assert "2026-10-18" not in json.dumps(result.published)
+    # Every published insight passed the deterministic gate; no Day 5 value is used as evidence.
+    # (A limitation may legitimately mention that 2026-10-18 is excluded.)
+    for p in result.published:
+        evidence = p["insight"]["metric_changes"] + p["insight"]["metric_totals"] + p["checked_claims"]
+        assert "2026-10-18" not in json.dumps(evidence)
     assert "INS-A001-SUSTAINED_GROWTH-20261014_20261015" in [p["insight_id"] for p in result.published]

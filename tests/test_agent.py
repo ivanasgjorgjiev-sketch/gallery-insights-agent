@@ -45,7 +45,7 @@ class FakeClient:
 
 def a1_insight(**overrides):
     insight = {
-        "signal_type": "sustained_growth", "artwork_id": "A001", "artist_id": "AR01",
+        "signal_type": "sustained_growth", "artwork_id": "A001",
         "title": "Artwork A1 engagement rose and stayed higher",
         "observed_signal": "Artwork views rose from 40 to 80 (+100%) between 2026-10-14 and 2026-10-15, with "
                            "daily unique viewers 30 to 45 (+50%) and favourites 5 to 12 (+140%).",
@@ -87,11 +87,31 @@ def run(script, **kw):
 
 # --- Tool definitions -------------------------------------------------------------
 
-def test_exactly_six_approved_tools_and_all_strict():
+def test_exactly_six_approved_tools():
     names = [t["name"] for t in agent.TOOL_DEFINITIONS]
     assert names == ["get_processed_data", "get_artwork_metrics", "compare_daily_metrics",
                      "aggregate_artist_metrics", "detect_engagement_patterns", "validate_evidence"]
-    assert all(t["strict"] for t in agent.TOOL_DEFINITIONS)
+    assert [t["name"] for t in agent.TOOL_DEFINITIONS if not t["strict"]] == ["validate_evidence"]
+
+
+def _count(schema, key):
+    if isinstance(schema, dict):
+        return (key in schema) + sum(_count(v, key) for v in schema.values())
+    if isinstance(schema, list):
+        return sum(_count(v, key) for v in schema)
+    return 0
+
+
+def test_strict_schemas_stay_well_within_api_complexity_limits():
+    strict = [t["input_schema"] for t in agent.TOOL_DEFINITIONS if t["strict"]] + [agent.FINAL_OUTPUT_SCHEMA]
+    assert _count(strict, "anyOf") <= 10          # API limit: 16 union-type parameters per request
+
+    def optional(s):
+        if isinstance(s, dict):
+            own = len(set(s.get("properties", {})) - set(s.get("required", []))) if "properties" in s else 0
+            return own + sum(optional(v) for v in s.values())
+        return sum(optional(v) for v in s) if isinstance(s, list) else 0
+    assert optional(strict) == 0                   # API limit: 24 optional parameters
 
 
 def test_no_commercial_action_tools():
@@ -217,9 +237,9 @@ def test_gate_withholds_wrong_number_even_if_model_proposes_it():
 
 def test_gate_withholds_relabelled_spike():
     spike_as_growth = a1_insight(
-        artwork_id="B001", artist_id="AR02", title="Artwork B1 grew",
+        artwork_id="B001", title="Artwork B1 grew",
         observed_signal="Artwork views rose from 30 to 45 (+50%).",
-        why_it_may_matter="Views increased.", suggested_next_step=None,
+        why_it_may_matter="Views increased.", suggested_next_step="",
         limitations=["Single comparison."],
         metric_changes=[{"artwork_id": "B001", "metric": "artwork_views", "old_date": D1, "new_date": D2,
                          "old_value": 30, "new_value": 45, "absolute_change": 15, "percentage_change": 50.0}])
@@ -236,9 +256,9 @@ def test_gate_requires_matching_confidence_label():
 
 def test_gate_withholds_suppressed_stable_pattern():
     stable = a1_insight(
-        signal_type="stable", artwork_id="B002", artist_id="AR02", confidence="qualified",
+        signal_type="stable", artwork_id="B002", confidence="qualified",
         title="Artwork B2 stable", observed_signal="Views went from 20 to 21.", why_it_may_matter="Stable.",
-        suggested_next_step=None, limitations=["Stable."],
+        suggested_next_step="", limitations=["Stable."],
         metric_changes=[{"artwork_id": "B002", "metric": "artwork_views", "old_date": D1, "new_date": D2,
                          "old_value": 20, "new_value": 21, "absolute_change": 1, "percentage_change": 5.0}])
     result, _ = run([final([stable])])
