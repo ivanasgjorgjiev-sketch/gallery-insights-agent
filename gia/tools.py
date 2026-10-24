@@ -460,26 +460,48 @@ PROHIBITED_CLAIMS = [
     (r"(unique|distinct|different) (people|persons|visitors|individuals)|\bvisitors\b", "distinct-people claim"),
     (r"\bcollector[s]? (name|identity|identities|contact)", "collector identity"),
 ]
-# Recommending or claiming a commercial/external action (negated mentions such as "I can't contact
-# anyone" are allowed by _asserted()).
-PROHIBITED_ACTIONS = (r"discount|(reduc|chang|rais|lower|updat|adjust|increas|decreas)(e|es|ed|ing) (the |its |their )?"
-                      r"prices?|pricing decision|contact(s|ed|ing)? (the |any |interested )?(collectors|buyers|clients)|"
-                      r"e-?mail(s|ed|ing)? (the |any )?(collectors|buyers|clients)|"
-                      r"notif(y|ied|ies|ying) (the |any )?(collectors|buyers|clients)|"
-                      r"sen(d|t|ds|ding) (a |an |the )?(message|e-?mail|notification|offer)|"
-                      r"(highlighted|promoted|featured) (the )?artwork|assign(ed)? (a )?task")
+# Recommending, instructing or claiming a commercial/external action. A plain mention of a topic
+# ("Pricing and discounts are outside this data") is not an action; negated statements such as
+# "I can't offer a discount" are allowed by _asserted().
+PROHIBITED_ACTIONS = (
+    # recommending / instructing / applying a discount
+    r"\b(offer|offers|offered|offering|apply|applies|applied|applying|give|gives|gave|giving|provide|introduce|"
+    r"recommend|recommends|recommended|recommending|suggest|suggests|suggested|propose|proposes|proposed|"
+    r"run|launch)\b[^.;]{0,40}\bdiscount|"
+    r"\bdiscount(s|ed|ing)?\s+(artwork\s+|the\s+artwork\s+)?[A-Z]\d+\b|"
+    r"\bdiscount(s|ed|ing)?\s+(it|them|this|that|these|those|the artwork|the piece)\b|"
+    r"\bdiscount(ed)?\s+by\s+\d|\b\d+\s?%\s+(off|discount)\b|\bshould\s+(be\s+)?discount|"
+    # changing prices or making the pricing decision
+    r"\b(reduc|chang|rais|lower|updat|adjust|increas|decreas|cut)(e|es|ed|ing|s)?\s+(the |its |their )?prices?\b|"
+    r"\b(make|makes|made|making|take|took|taken)\s+(the |a )?pricing decisions?\b|"
+    # contacting people or sending messages (instructions, offers or completed-action claims)
+    r"\bcontact(s|ed|ing)?\s+(the |any |interested |these |those )?(collectors|buyers|clients|them)\b|"
+    r"\be-?mail(s|ed|ing)?\s+(the |any )?(collectors|buyers|clients|them)\b|"
+    r"\bnotif(y|ied|ies|ying)\s+(the |any )?(collectors|buyers|clients|them)\b|"
+    r"\bsen(d|t|ds|ding)\s+(a |an |the )?(message|e-?mail|notification|offer)\b|"
+    # claiming business actions were taken
+    r"\b(highlighted|promoted|featured)\s+(the )?artwork\b|\bassign(ed|s)?\s+(a )?task\b")
 SAFE_NEXT_STEP = "Review the engagement evidence and decide whether further investigation is worthwhile."
 CAUSE_SEEKING_STEP = (r"coincid|what (may |might |could )?(have )?(caused|driven|drove|triggered|explains?)|"
                       r"why (the |this |it |views |engagement )|reasons? (for|behind)|\bdrivers?\b|attribut")
-NEGATION = re.compile(r"\b(not|no|never|without|cannot|can't|doesn't|does not|isn't|is not|nor|neither)\b[^.;]*$",
-                      re.IGNORECASE)
+NEGATION = re.compile(r"\b(not|no|never|without|cannot|can't|can not|doesn't|does not|don't|do not|didn't|"
+                      r"did not|won't|will not|wouldn't|would not|shouldn't|should not|isn't|is not|aren't|"
+                      r"are not|unable|nor|neither)\b[^.;]*$", re.IGNORECASE)
+
+
+CONTRAST = re.compile(r"[.;!?]|\b(but|however|although|though|instead|yet|whereas)\b", re.IGNORECASE)
 
 
 def _asserted(pattern: str, text: str) -> list[str]:
-    """Matches of `pattern` in `text` that are not negated earlier in the same clause."""
+    """Matches of `pattern` in `text` that are not negated earlier in the same clause.
+
+    A clause ends at sentence punctuation or a contrast word ("I can't contact collectors, but you
+    could offer a discount" asserts the discount). Commas do not end a clause, so a negated list
+    ("I can't contact anyone, change prices or offer discounts") stays negated."""
     hits = []
     for m in re.finditer(pattern, text, re.IGNORECASE):
-        clause_start = max(text.rfind(".", 0, m.start()), text.rfind(";", 0, m.start())) + 1
+        boundaries = [b.end() for b in CONTRAST.finditer(text, 0, m.start())]
+        clause_start = boundaries[-1] if boundaries else 0
         if not NEGATION.search(text[clause_start:m.start()]):
             hits.append(m.group(0))
     return hits

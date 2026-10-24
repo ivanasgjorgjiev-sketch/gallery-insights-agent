@@ -13,6 +13,7 @@ results.json (every case with checks; human_verdict left empty) and report.md.
 from __future__ import annotations
 
 import argparse
+import copy
 import datetime as dt
 import json
 import os
@@ -82,6 +83,54 @@ def live_run(max_total_usd: float):
     return analysis, answers
 
 
+def regrade(analysis, answers):
+    """Re-check the exact saved answers with the current validation code. No API calls: the model's
+    saved output is kept as-is; only the deterministic gate, grounding and tool calls are re-run."""
+    from gia import explain
+    with mock.patch.object(anthropic, "Anthropic", lambda *a, **k: (_ for _ in ()).throw(
+            RuntimeError("regrade must not create an API client"))):
+        new = copy.deepcopy(analysis)
+        proposed = [p["insight"] for p in analysis.published] + [w["insight"] for w in analysis.withheld]
+        new.published, new.withheld = agent.publication_gate(proposed)
+        new.not_surfaced = explain.not_surfaced({p["insight"]["artwork_id"] for p in new.published})
+        regraded = {}
+        for q, f in answers.items():
+            g = copy.deepcopy(f)
+            outputs = []
+            for c in f.tool_calls:
+                ok, out = agent.execute_tool(c["tool"], c["arguments"])
+                if ok:
+                    outputs.append(out)
+            if f.answer_type is not None:     # a saved model answer exists; re-check it
+                text = "\n".join([f.answer, *f.limitations])
+                g.grounding_errors = followup.grounding_check(text, f.answer_type, outputs, new.published, q, f.facts)
+                if f.answer_type not in followup.ANSWER_TYPES:
+                    g.grounding_errors.append("unknown answer type")
+                g.status = "withheld" if g.grounding_errors else "answered"
+            regraded[q] = g
+    return new, regraded
+
+
+def write_comparison(run_dir: Path, baseline_dir: Path, results: list[dict]) -> None:
+    base = {r["id"]: r for r in json.loads((baseline_dir / "results.json").read_text())["results"]}
+    rows = ["# Before / after: saved Stage B answers re-checked (no API calls)", "",
+            f"- Baseline (unchanged): `{baseline_dir.name}`", f"- Post-fix re-check: `{run_dir.name}`", "",
+            "| Case | Before: automatic | Before: overall | After: automatic | After: overall | Follow-up before → after |",
+            "|---|---|---|---|---|---|"]
+    for r in results:
+        b = base[r["id"]]
+        fb = ((b.get("actual_result") or {}).get("followup") or {}).get("status", "—")
+        fa = ((r.get("actual_result") or {}).get("followup") or {}).get("status", "—")
+        b_overall = b.get("overall_status") or ("Fail" if b["automatic_verdict"] == "Fail" else
+                                                "Pending human review" if b["needs_human_review"] else "Pass")
+        rows.append(f"| {r['id']} | {b['automatic_verdict']} | {b_overall} | {r['automatic_verdict']} | "
+                    f"{r['overall_status']} | {fb} → {fa} |")
+    remaining = [r for r in results if r["automatic_verdict"] == "Fail"]
+    rows += ["", "## Remaining automatic failures", ""]
+    rows += [f"- **{r['id']}**: {r['failure_reason']}" for r in remaining] or ["- None"]
+    (run_dir / "comparison.md").write_text("\n".join(rows) + "\n")
+
+
 # --- App journeys (TC02, TC15): real Streamlit app, API client creation forbidden ------------------
 
 def app_journeys(analysis) -> dict:
@@ -132,7 +181,9 @@ def write_report(run_dir: Path, mode: str, analysis, answers, results: list[dict
              f"- Run: {run_dir.name}",
              f"- Model: {analysis.model} · analysis status: {analysis.status} · "
              f"{analysis.tool_calls} tool calls · {len(answers)} follow-up questions",
-             "- Estimated API cost: " + ("n/a (mock: no API calls)" if mode == "mock" else f"${total:.3f}"),
+             "- Estimated API cost: " + ("n/a (mock: no API calls)" if mode == "mock" else
+                                         f"$0 (no new API calls; the original live run cost ${total:.3f})"
+                                         if mode in ("regrade", "reuse") else f"${total:.3f}"),
              f"- Tokens: {usage['input_tokens']:,} input, {usage['cache_creation_input_tokens']:,} cache writes, "
              f"{usage['cache_read_input_tokens']:,} cache reads, {usage['output_tokens']:,} output"
              + (" (mock values)" if mode == "mock" else ""),
@@ -162,14 +213,18 @@ def main(argv=None):
     group.add_argument("--mock", action="store_true", help="deterministic fixtures, no API calls")
     group.add_argument("--live", action="store_true", help="real Claude API calls (paid)")
     group.add_argument("--reuse", type=Path, help="re-score a saved run directory, no API calls")
+    group.add_argument("--regrade", type=Path, help="re-check the saved answers of a run with the current "
+                       "validation code (no API calls) and compare with that run as the baseline")
     ap.add_argument("--approve-paid", action="store_true", help="required with --live")
     ap.add_argument("--max-total-usd", type=float, default=2.00, help="stop live calls past this estimated total")
     args = ap.parse_args(argv)
 
     if args.live and not args.approve_paid:
         raise SystemExit("--live makes paid API requests; add --approve-paid only after explicit approval.")
-    mode = "mock" if args.mock else "live" if args.live else "reuse"
-    if args.reuse:
+    mode = "mock" if args.mock else "live" if args.live else "reuse" if args.reuse else "regrade"
+    if args.regrade:
+        analysis, answers = regrade(*pickle.loads((args.regrade / "raw_run.pkl").read_bytes()))
+    elif args.reuse:
         analysis, answers = pickle.loads((args.reuse / "raw_run.pkl").read_bytes())
     elif args.mock:
         analysis, answers = mock_run()
@@ -185,6 +240,8 @@ def main(argv=None):
         "suite": cases.load_cases()["suite"], "mode": mode, "run": run_dir.name, "model": analysis.model,
         "verdict_options": cases.load_cases()["verdict_options"], "results": results}, indent=2, default=str))
     write_report(run_dir, mode, analysis, answers, results)
+    if args.regrade:
+        write_comparison(run_dir, args.regrade, results)
     passed = sum(r["automatic_verdict"] == "Pass" for r in results)
     shown = run_dir.relative_to(ROOT) if run_dir.is_relative_to(ROOT) else run_dir
     print(f"{passed}/{len(results)} cases pass automatic checks → {shown}/report.md")

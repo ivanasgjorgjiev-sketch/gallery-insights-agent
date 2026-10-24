@@ -159,7 +159,7 @@ def grounding_check(answer: str, answer_type: str, tool_outputs: list[Any], publ
     extra: set[float] = set()
     if answer_type in ("refusal", "clarification"):
         _numbers_in(question, extra)       # repeating the manager's own figures in a refusal is harmless
-    problems += grounding.check_text(answer, verified, extra, gdata)
+    problems += grounding.check_text(answer, verified, extra, gdata, tool_numbers=seen)
     for pattern, label in tools.PROHIBITED_CLAIMS:
         for hit in tools._asserted(pattern, answer):
             problems.append(f"unsupported {label} ('{hit}')")

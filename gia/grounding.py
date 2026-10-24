@@ -46,6 +46,9 @@ DAY_MONTH = re.compile(r"\b(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|No
 ID_TOKEN = re.compile(r"\b[A-Z]+\d+\b")
 NUMBER = re.compile(r"(?<![\w.])([+\-−]?)(\d+(?:\.\d+)?)(\s?%)?")
 SUM_EXPR = re.compile(r"(\d+(?:\.\d+)?(?:\s*[+−-]\s*\d+(?:\.\d+)?)+)\s*=\s*(\d+(?:\.\d+)?)")
+# "286 views (40 + 80 + 76 + 90)": a figure followed by its breakdown in brackets
+BREAKDOWN = re.compile(r"(\d+(?:\.\d+)?)(?:\s+[A-Za-z\-]+){0,3}\s*\(\s*(\d+(?:\.\d+)?(?:\s*\+\s*\d+(?:\.\d+)?)+)\s*\)")
+BOUND_DATE_GAP = re.compile(r"^\s*(?:[A-Za-z\-]+\s+){0,3}?(?:on|for)\s+$", re.IGNORECASE)
 RULE_WORDS = re.compile(r"\b(threshold|minimum|at least|rule|criteria|criterion|screening)\b", re.IGNORECASE)
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?;])\s+|\n+")
 AGGREGATE_WORDS = re.compile(r"\b(combined|in total|total|together|altogether|across both|overall)\b", re.IGNORECASE)
@@ -153,6 +156,22 @@ def verify_fact(fact: Fact, data: _Data | None = None) -> str | None:
     return None if actual == fact.value else f"{label}: source total is {actual}, not {fact.value:g}"
 
 
+def components(fact: Fact, data: _Data) -> tuple[list[float], set[str]] | None:
+    """The figures a verified total is made of, recomputed with the tools, and their subjects:
+    an artwork total -> its daily values; an artist total -> its artworks' totals; gallery -> daily views."""
+    if fact.measure != "total":
+        return None
+    if fact.metric == "gallery_views":
+        return [float(v) for v in data.gallery_series().values()], {fact.subject}
+    if fact.subject in data.artists:
+        agg = tools.aggregate_artist_metrics(fact.subject, [fact.metric])["totals"][fact.metric]["per_artwork"]
+        return [float(a["total_events"]) for a in agg], {a["artwork_id"] for a in agg}
+    if fact.subject in data.artworks and fact.metric in tools.SUMMABLE_METRICS:
+        values = list(data.series(fact.subject, fact.metric).values())
+        return (None if None in values else [float(v) for v in values]), {fact.subject}
+    return None
+
+
 def facts_from_insight(insight: dict) -> list[Fact]:
     """Structured facts implied by an insight's metric_changes and metric_totals."""
     facts = []
@@ -210,8 +229,11 @@ def _nearest(mentions: list[tuple[int, str]], pos: int) -> str | None:
 
 
 def check_text(text: str, facts: list[Fact], extra_numbers: set[float] = frozenset(),
-               data: _Data | None = None) -> list[str]:
-    """Problems with numbers in `text` given verified `facts` (empty list = grounded)."""
+               data: _Data | None = None, tool_numbers: set[float] | None = None) -> list[str]:
+    """Problems with numbers in `text` given verified `facts` (empty list = grounded).
+
+    tool_numbers: numbers returned by tools in this question (follow-ups). When given, the parts of a
+    written sum must also appear there; insights pass None."""
     data = data or _Data()
     year = data.overview["processed_dates"][0][:4]
     subject_pats = _subject_patterns(data)
@@ -234,22 +256,55 @@ def check_text(text: str, facts: list[Fact], extra_numbers: set[float] = frozens
         metrics = [(m.start(), METRIC_OF[m.group(1).lower()]) for m in METRIC_RE.finditer(sentence)]
         date_mentions = [(pos, iso) for pos, iso, _ in dates]
 
-        sums, sum_parts = {}, set()
+        verified_positions: set[int] = set()
+        result_measures: dict[int, tuple] = {}            # a written result must be the right kind of figure
+        expressions = []                                  # (result value, result pos, [(operand, pos)], all plus)
         for m in SUM_EXPR.finditer(masked):
-            sum_parts.update(range(m.start(1), m.end(1)))
-            parts = [float(x) for x in re.findall(r"\d+(?:\.\d+)?", m.group(1))]
+            ops = [(float(x.group(0)), m.start(1) + x.start()) for x in re.finditer(r"\d+(?:\.\d+)?", m.group(1))]
             signs = re.findall(r"[+−-]", m.group(1))
-            total = parts[0] + sum(p if s == "+" else -p for s, p in zip(signs, parts[1:]))
+            total = ops[0][0] + sum(o if sg == "+" else -o for sg, (o, _) in zip(signs, ops[1:]))
             if abs(total - float(m.group(2))) > TOLERANCE:
                 problems.append(f"incorrect arithmetic: '{m.group(0)}'")
-            sums[m.start(2)] = True                 # a correct written sum's result is checked by the sum itself
+                continue
+            all_plus = all(sg == "+" for sg in signs)
+            expressions.append((float(m.group(2)), m.start(2), ops, all_plus))
+            result_measures[m.start(2)] = ("total",) if all_plus else ("change",)
+        for m in BREAKDOWN.finditer(masked):
+            ops = [(float(x.group(0)), m.start(2) + x.start()) for x in re.finditer(r"\d+(?:\.\d+)?", m.group(2))]
+            if abs(sum(o for o, _ in ops) - float(m.group(1))) > TOLERANCE:
+                problems.append(f"incorrect arithmetic: '{m.group(1)}' is not the sum of '{m.group(2)}'")
+                continue
+            expressions.append((float(m.group(1)), m.start(1), ops, True))
+            result_measures[m.start(1)] = ("total",)
+
+        named = {sid for _, sid in subjects}
+        for value, rpos, ops, all_plus in expressions:
+            # A written sum is accepted only if its parts are exactly the components of a verified total,
+            # recomputed with the tools, seen in this question's tool output, and attributed consistently.
+            if not all_plus:
+                continue                                  # differences: every number is checked on its own below
+            subj, metric = _nearest(subjects, rpos), _nearest(metrics, rpos)
+            for fact in (f for f in facts if f.measure == "total" and abs(f.value - value) <= TOLERANCE):
+                comp = components(fact, data)
+                if not comp or sorted(o for o, _ in ops) != sorted(comp[0]):
+                    continue
+                if tool_numbers is not None and not all(o in tool_numbers for o, _ in ops):
+                    continue
+                if metric and metric != fact.metric:
+                    continue
+                parts_subjects = comp[1]
+                if subj and subj != fact.subject and not (subj in parts_subjects and parts_subjects <= named):
+                    continue
+                verified_positions.add(rpos)
+                verified_positions.update(pos for _, pos in ops)
+                break
 
         for m in NUMBER.finditer(masked):
             raw, value, is_pct = m.group(0).strip(), float(m.group(2)), bool(m.group(3))
             pos = m.start(2)
             after = masked[m.end():m.end() + 16].lower()
             before = masked[max(0, m.start() - 6):m.start()].lower()
-            if pos in sums:
+            if pos in verified_positions:
                 continue
             if not is_pct and value == int(value) and 1 <= value <= 7 and (
                     "day" in before or re.match(r"\s*(processed )?(fair )?days?\b", after)):
@@ -263,8 +318,11 @@ def check_text(text: str, facts: list[Fact], extra_numbers: set[float] = frozens
 
             subject = _nearest(subjects, pos)
             metric = _nearest(metrics, pos)
-            date = _nearest(date_mentions, pos)
-            measures = ("percent_change",) if is_pct else ("value", "change", "total")
+            # "13 on 2026-10-17": a date introduced by on/for right after the number belongs to it.
+            bound = next((iso for dpos, iso in date_mentions if dpos >= m.end()
+                          and BOUND_DATE_GAP.match(sentence[m.end():dpos])), None)
+            date = bound or _nearest(date_mentions, pos)
+            measures = ("percent_change",) if is_pct else result_measures.get(pos, ("value", "change", "total"))
             candidates = [f for f in facts if f.measure in measures and abs(abs(f.value) - value) <= (
                 TOLERANCE if is_pct else 0)]
             if not candidates:
@@ -280,8 +338,6 @@ def check_text(text: str, facts: list[Fact], extra_numbers: set[float] = frozens
                 candidates = narrowed
             if subject and not (metric == "gallery_views"):
                 allowed = {subject}
-                if pos in sum_parts and subject in data.artists:   # parts of an artist total = its artworks
-                    allowed |= {a for a, info in data.artworks.items() if info["artist_id"] == subject}
                 if AGGREGATE_WORDS.search(masked[max(0, m.start() - 25):m.end() + 25]):
                     # "...: 416 combined view events" -> a total for anyone named in the sentence (or their artist)
                     named = {sid for _, sid in subjects}

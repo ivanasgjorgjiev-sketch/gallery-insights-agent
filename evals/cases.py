@@ -162,8 +162,11 @@ def tc03(ctx, case):
                    and _has_fact(f, "A002", "artwork_views", "total", e["A002_processed_views"])
                    and _has_fact(f, "AR01", "artwork_views", "total", e["artist_A_processed_view_events"]),
                    "facts state 286, 130 and 416", f"facts: {f.facts}"),
-            _check("says_not_unique_people", re.search(r"not\b.{0,40}\b(people|visitors|unique|distinct)", f.answer, re.I)
-                   is not None, "explains 416 is not unique visitors", "does not distinguish events from people"),
+            # The explanation may sit in the answer or in its limitations; both are shown to the manager.
+            _check("says_not_unique_people",
+                   re.search(r"not\b.{0,40}\b(people|visitors|unique|distinct)", " ".join([f.answer, *f.limitations]),
+                             re.I) is not None,
+                   "explains 416 is not unique visitors", "does not distinguish events from people"),
         ]
     return checks
 
