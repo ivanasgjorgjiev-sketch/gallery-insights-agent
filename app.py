@@ -15,7 +15,7 @@ import anthropic
 import pandas as pd
 import streamlit as st
 
-from gia import agent, config, evidence, explain, review, snapshot
+from gia import agent, config, evidence, explain, followup, review, snapshot
 from gia.data import DataValidationError, load_processed_data
 from gia.display_names import edition_label, gallery_name
 
@@ -123,6 +123,7 @@ def show_analysis(result: agent.AnalysisResult) -> None:
     st.session_state["analysis"] = result
     st.session_state["review"] = review.start_review(result)
     st.session_state["evidence_open"] = set()
+    st.session_state["followups"] = []          # follow-ups belong to the analysis on screen
 
 
 def render_feedback(entry: dict, state: review.ReviewState) -> None:
@@ -179,6 +180,90 @@ def render_insight_card(rank: int, entry: dict, state: review.ReviewState) -> No
         if is_open:
             render_evidence(evidence.build_evidence(entry))
         render_feedback(entry, state)
+
+
+ANSWER_BADGES = {"answer": ":green-badge[Answer]", "clarification": ":blue-badge[Clarifying question]",
+                 "refusal": ":orange-badge[Declined: outside the agent's data or authority]"}
+
+
+def render_followup(f: followup.FollowUpResult, titles: dict) -> None:
+    with st.container(border=True):
+        about = f" · about: {titles[f.insight_id]}" if f.insight_id in titles else ""
+        st.markdown(f"**You asked:** {f.question}{about}")
+        if f.recorded_at:
+            st.caption("🎬 Recorded answer from the live session, re-checked against the source data. "
+                       "It was not generated now.")
+        if f.shown:
+            st.markdown(ANSWER_BADGES.get(f.answer_type, ""))
+            st.markdown(f.answer)
+            if f.limitations:
+                st.caption("Limitations: " + " ".join(f.limitations))
+        elif f.status == "withheld":
+            st.warning("The agent's answer could not be verified against the tool results, so it is not shown.")
+        else:
+            st.error(f"No answer: {f.error}")
+        with st.expander(f"How this was answered ({len(f.tool_calls)} tool call(s))"):
+            for s in f.trace:
+                st.markdown(step_line(s))
+            if f.grounding_errors:
+                st.markdown("**Grounding problems:**")
+                for e in f.grounding_errors:
+                    st.markdown(f"- {e}")
+            if f.estimated_cost_usd is not None:
+                st.caption(f"Estimated cost of this question: ${f.estimated_cost_usd:.3f}")
+
+
+def render_followup_area(result: agent.AnalysisResult, mode: str) -> None:
+    st.markdown("#### Follow-up questions")
+    titles = {p["insight_id"]: p["insight"]["title"] for p in result.published}
+    if result.replayed or mode != "live":
+        st.caption("🎬 Demo mode: free-form questions are available only in the live version. These are recorded "
+                   "examples from the live session; each answer was re-checked against the source data, and "
+                   "nothing is generated now.")
+        if not result.followup_examples:
+            st.info("This recording includes no example questions.")
+        for f in result.followup_examples:
+            render_followup(f, titles)
+        return
+
+    st.caption("Ask about this gallery's processed engagement data: artworks, artists, metrics and comparisons. "
+               "Every number comes from the analytical tools. The agent cannot see collector, sales or pricing "
+               "information and takes no actions. Questions do not affect your review or feedback.")
+    history: list = st.session_state.setdefault("followups", [])
+    for f in history:
+        render_followup(f, titles)
+    asked = st.session_state.get("followups_asked", 0)
+    limit = config.max_followups_per_session()
+    key = config.api_key()
+    if not key:
+        st.caption("Follow-up questions need the Anthropic API key, which is not configured.")
+        return
+    if asked >= limit:
+        st.caption(f"This session has reached its limit of {limit} follow-up questions (cost protection).")
+        return
+    with st.form("followup-form", clear_on_submit=True):
+        about = st.selectbox("About (optional)", [None] + list(titles),
+                             format_func=lambda i: "The data in general" if i is None else titles[i])
+        question = st.text_area("Your question", max_chars=config.MAX_QUESTION_CHARS,
+                                placeholder="e.g. Was Artwork A1's increase sustained, or driven by one day?")
+        submitted = st.form_submit_button("Ask")
+    st.caption(f"Question {asked + 1} of {limit} this session · up to {config.followup_max_tool_calls()} tool calls, "
+               f"{config.followup_max_output_tokens():,} output tokens and ${config.followup_max_cost_usd():.2f} "
+               "per question.")
+    if submitted and question.strip():
+        st.session_state["followups_asked"] = asked + 1
+        client = anthropic.Anthropic(api_key=key, max_retries=2, timeout=120)
+        with st.status("The agent is investigating your question…", expanded=True) as status:
+            f = followup.run_followup(client, config.model(), question, result.published, about, history,
+                                      effort=config.effort(), max_tool_calls=config.followup_max_tool_calls(),
+                                      max_output_tokens=config.followup_max_output_tokens(),
+                                      max_cost_usd=config.followup_max_cost_usd(),
+                                      max_question_chars=config.MAX_QUESTION_CHARS,
+                                      on_step=lambda s: status.markdown(step_line(s)))
+            status.update(label="Answered" if f.shown else "No verified answer",
+                          state="complete" if f.shown else "error", expanded=False)
+        history.append(f)
+        st.rerun()
 
 
 st.set_page_config(page_title="Gallery Insights Agent", page_icon="🖼️", layout="wide")
@@ -332,6 +417,9 @@ if result:
                     st.markdown(f"**{n['artwork_title']} ({n['artwork_id']})** · {n['label']}  \n"
                                 f"{n['explanation']}  \n*{n['why_not_shown']}*")
 
+    if not result.error:
+        render_followup_area(result, mode)
+
     withheld = len(result.withheld) if not result.replayed else (result.withheld_count or 0)
     if withheld:
         with st.expander(f"Withheld by validation ({withheld}): never shown as findings"):
@@ -356,7 +444,8 @@ if result:
     if mode == "live" and not result.replayed and result.status == "completed":
         if st.button("Save this run as the demo recording"):
             try:
-                path = snapshot.save_snapshot(result, api_key=config.api_key())
+                path = snapshot.save_snapshot(result, api_key=config.api_key(),
+                                              followups=st.session_state.get("followups", []))
                 st.success(f"Saved to `{path.relative_to(path.parent.parent)}`. Commit it to publish the demo.")
             except snapshot.SnapshotError as e:
                 st.error(str(e))

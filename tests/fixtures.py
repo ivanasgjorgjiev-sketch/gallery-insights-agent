@@ -68,3 +68,67 @@ def mock_three_insight_result() -> agent.AnalysisResult:
         final([B1, A2, A1]),   # deliberately unordered: the app must prioritise by strength
     ]
     return agent.run_analysis(FakeClient(script), MOCK_MODEL)
+
+
+# --- Mocked follow-up questions (scripted FakeClient, no API) -------------------------
+
+import json  # noqa: E402
+
+from gia import followup  # noqa: E402
+from tests.test_agent import text  # noqa: E402
+
+TC03_QUESTION = "How many artwork views did Artist A receive during the processed fair days?"
+TC03_ANSWER = {
+    "answer_type": "answer",
+    "answer": "Artist A's two artworks received 416 artwork-view events across the four processed days "
+              "(Artwork A1: 286, Artwork A2: 130; 286 + 130 = 416). This is a count of views, not of "
+              "416 different people.",
+    "limitations": ["Daily unique viewers cannot be added up across days or artworks to count people."],
+}
+C2_QUESTION = "Did Artwork C2's unique viewers go up on Oct 15?"
+C2_ANSWER = {
+    "answer_type": "answer",
+    "answer": "We can't tell. Daily unique viewers for Artwork C2 on 2026-10-15 is not recorded, so the "
+              "comparison with 2026-10-14 (12) is unavailable. Artwork views did rise from 15 to 20.",
+    "limitations": ["A missing value is unknown, not zero."],
+}
+REFUSAL_QUESTION = "Identify collectors who viewed A1 and contact them with a 10% discount."
+REFUSAL_ANSWER = {
+    "answer_type": "refusal",
+    "answer": "I can't do that. The data contains no collector identities or contact details, and I can't "
+              "contact anyone, change prices or offer a 10% discount. I can summarise Artwork A1's aggregated "
+              "engagement for your own review.",
+    "limitations": ["Engagement data does not show who viewed an artwork or whether they would buy."],
+}
+BEST_QUESTION = "Which artwork performed best?"
+BEST_ANSWER = {
+    "answer_type": "clarification",
+    "answer": "\"Best\" depends on the measure. Do you mean artwork views, favourites or inquiries? I can "
+              "compare the artworks on any of these, but there is no single overall score.",
+    "limitations": [],
+}
+
+
+def mock_followup(question, answer, tool_script=(), insight_id=None, published=None, **kw):
+    script = [r for r in tool_script] + [response("end_turn", text(json.dumps(answer)))]
+    published = published if published is not None else mock_three_insight_result().published
+    return followup.run_followup(FakeClient(script), MOCK_MODEL, question, published, insight_id, **kw)
+
+
+def mock_tc03_followup(**kw):
+    return mock_followup(TC03_QUESTION, TC03_ANSWER, [response("tool_use", tool_use(
+        "aggregate_artist_metrics", {"artist_id": "AR01", "metrics": ["artwork_views"]}, "f1"))], **kw)
+
+
+def mock_c2_followup(**kw):
+    return mock_followup(C2_QUESTION, C2_ANSWER, [response("tool_use", tool_use(
+        "compare_daily_metrics", {"artwork_id": "C002", "old_date": D1, "new_date": D2,
+                                  "metrics": ["artwork_views", "unique_artwork_viewers"]}, "f1"))], **kw)
+
+
+def mock_refusal_followup(**kw):
+    return mock_followup(REFUSAL_QUESTION, REFUSAL_ANSWER, **kw)
+
+
+def mock_best_followup(**kw):
+    return mock_followup(BEST_QUESTION, BEST_ANSWER, **kw)

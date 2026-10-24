@@ -204,16 +204,11 @@ class AnalysisResult:
                                                  "cache_creation_input_tokens": 0})
     error: str | None = None
     withheld_count: int | None = None  # set for replays, where withheld drafts themselves are not kept
+    followup_examples: list = field(default_factory=list)   # recorded follow-up Q&As (DEMO replays only)
 
     @property
     def estimated_cost_usd(self) -> float | None:
-        prices = PRICES_PER_MTOK.get(self.model)
-        if not prices:
-            return None
-        u = self.usage
-        return (u["input_tokens"] * prices["input"] + u["output_tokens"] * prices["output"]
-                + u["cache_read_input_tokens"] * prices["cache_read"]
-                + u["cache_creation_input_tokens"] * prices["cache_write"]) / 1_000_000
+        return estimate_cost(self.model, self.usage)
 
 
 # --- Tool execution ---------------------------------------------------------------
@@ -335,6 +330,32 @@ def publication_gate(insights: list[dict]) -> tuple[list[dict], list[dict]]:
 
 # --- The agent loop ------------------------------------------------------------------
 
+def api_error_message(e: anthropic.APIError, model: str) -> str:
+    """Readable message for an API failure (never includes the API key)."""
+    if isinstance(e, anthropic.AuthenticationError):
+        return "The API key was rejected. Check ANTHROPIC_API_KEY."
+    if isinstance(e, anthropic.PermissionDeniedError):
+        return "The API key does not have permission for this model."
+    if isinstance(e, anthropic.NotFoundError):
+        return f"Model '{model}' was not found for this API key."
+    if isinstance(e, anthropic.RateLimitError):
+        return "Rate limit or spending limit reached. Try again later."
+    if isinstance(e, anthropic.APIStatusError):
+        return f"Anthropic API error (HTTP {e.status_code}): {e.message}"
+    if isinstance(e, anthropic.APIConnectionError):
+        return "Could not reach the Anthropic API. Check the internet connection."
+    return f"Anthropic API error ({type(e).__name__})."
+
+
+def estimate_cost(model: str, usage: dict) -> float | None:
+    prices = PRICES_PER_MTOK.get(model)
+    if not prices:
+        return None
+    return (usage["input_tokens"] * prices["input"] + usage["output_tokens"] * prices["output"]
+            + usage["cache_read_input_tokens"] * prices["cache_read"]
+            + usage["cache_creation_input_tokens"] * prices["cache_write"]) / 1_000_000
+
+
 def verify_model(client: anthropic.Anthropic, model: str) -> str:
     """Confirm the model ID is available to this API key (free metadata request)."""
     return client.models.retrieve(model).id
@@ -367,18 +388,8 @@ def run_analysis(client: anthropic.Anthropic, model: str, effort: str = "medium"
         started = time.monotonic()
         try:
             response = client.messages.create(**request)
-        except anthropic.AuthenticationError:
-            result.error = "The API key was rejected. Check ANTHROPIC_API_KEY."
-        except anthropic.PermissionDeniedError:
-            result.error = "The API key does not have permission for this model."
-        except anthropic.NotFoundError:
-            result.error = f"Model '{model}' was not found for this API key."
-        except anthropic.RateLimitError:
-            result.error = "Rate limit or spending limit reached. Try again later."
-        except anthropic.APIStatusError as e:
-            result.error = f"Anthropic API error (HTTP {e.status_code}): {e.message}"
-        except anthropic.APIConnectionError:
-            result.error = "Could not reach the Anthropic API. Check the internet connection."
+        except anthropic.APIError as e:
+            result.error = api_error_message(e, model)
         if result.error:
             log("error", "API request failed", detail=result.error)
             return result

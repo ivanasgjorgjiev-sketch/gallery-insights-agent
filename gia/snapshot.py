@@ -56,7 +56,16 @@ def _sanitize_step(step: TraceStep) -> dict:
     return s
 
 
-def build_snapshot(result: AnalysisResult) -> dict:
+def _recorded_followup(f) -> dict:
+    """Only grounded, shown answers are recorded; validate_evidence calls (which carry draft text) are
+    left out, so an answer that depended on them will simply fail re-verification and not be replayed."""
+    return {"question": f.question, "insight_id": f.insight_id, "answer_type": f.answer_type,
+            "answer": f.answer, "limitations": f.limitations,
+            "tool_calls": [c for c in f.tool_calls if c["tool"] != "validate_evidence"],
+            "recorded_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}
+
+
+def build_snapshot(result: AnalysisResult, followups: list | None = None) -> dict:
     if result.replayed:
         raise SnapshotError("A replayed investigation cannot be recorded again.")
     if result.status != "completed":
@@ -77,6 +86,7 @@ def build_snapshot(result: AnalysisResult) -> dict:
         "published": published,
         "not_surfaced": not_surfaced,
         "trace": [_sanitize_step(s) for s in result.trace],
+        "followups": [_recorded_followup(f) for f in (followups or []) if f.shown],
     }
 
 
@@ -88,8 +98,9 @@ def _check_no_secrets(text: str, api_key: str | None) -> None:
             raise SnapshotError("Refusing to save: the snapshot contains something that looks like a credential.")
 
 
-def save_snapshot(result: AnalysisResult, path: Path = DEFAULT_SNAPSHOT, api_key: str | None = None) -> Path:
-    text = json.dumps(build_snapshot(result), indent=2, default=str)
+def save_snapshot(result: AnalysisResult, path: Path = DEFAULT_SNAPSHOT, api_key: str | None = None,
+                  followups: list | None = None) -> Path:
+    text = json.dumps(build_snapshot(result, followups), indent=2, default=str)
     _check_no_secrets(text, api_key)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text + "\n")
@@ -125,4 +136,8 @@ def load_snapshot(path: Path | None = None) -> AnalysisResult:
     result.not_surfaced = explain.not_surfaced({p["insight"]["artwork_id"] for p in published})
     result.trace = [TraceStep(**s) for s in snap["trace"]]
     result.withheld_count = snap["withheld_count"]
+    # Recorded follow-up answers are re-checked by re-running their deterministic tool calls.
+    from gia.followup import reverify_recorded
+    examples = [reverify_recorded(f, published) for f in snap.get("followups", [])]
+    result.followup_examples = [e for e in examples if e is not None]
     return result

@@ -17,6 +17,11 @@ DEFAULT_MAX_TOOL_CALLS = 15
 DEFAULT_MAX_ANALYSES_PER_SESSION = 5
 DEFAULT_MAX_OUTPUT_TOKENS = 8000    # hard cap per API response (includes thinking)
 DEFAULT_MAX_COST_PER_ANALYSIS_USD = 0.75  # analysis stops if estimated spend passes this
+DEFAULT_FOLLOWUP_MAX_TOOL_CALLS = 8
+DEFAULT_FOLLOWUP_MAX_OUTPUT_TOKENS = 4000
+DEFAULT_FOLLOWUP_MAX_COST_USD = 0.25      # per question
+DEFAULT_MAX_FOLLOWUPS_PER_SESSION = 10
+MAX_QUESTION_CHARS = 500
 
 # Published per-million-token prices (USD) used only for the cost estimate shown in the app.
 PRICES_PER_MTOK = {
@@ -56,6 +61,22 @@ def max_output_tokens() -> int:
 
 def max_cost_per_analysis_usd() -> float:
     return float(_setting("GIA_MAX_COST_PER_ANALYSIS_USD") or DEFAULT_MAX_COST_PER_ANALYSIS_USD)
+
+
+def followup_max_tool_calls() -> int:
+    return int(_setting("GIA_FOLLOWUP_MAX_TOOL_CALLS") or DEFAULT_FOLLOWUP_MAX_TOOL_CALLS)
+
+
+def followup_max_output_tokens() -> int:
+    return int(_setting("GIA_FOLLOWUP_MAX_OUTPUT_TOKENS") or DEFAULT_FOLLOWUP_MAX_OUTPUT_TOKENS)
+
+
+def followup_max_cost_usd() -> float:
+    return float(_setting("GIA_FOLLOWUP_MAX_COST_USD") or DEFAULT_FOLLOWUP_MAX_COST_USD)
+
+
+def max_followups_per_session() -> int:
+    return int(_setting("GIA_MAX_FOLLOWUPS_PER_SESSION") or DEFAULT_MAX_FOLLOWUPS_PER_SESSION)
 
 
 def demo_snapshot_path() -> str | None:
