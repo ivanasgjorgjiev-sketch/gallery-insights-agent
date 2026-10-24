@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -148,9 +149,18 @@ def load_processed_data(
 ) -> ProcessedData:
     """Validate the CSV and return only the eligible records for one gallery/edition.
 
-    Raises DataValidationError if the file fails any check.
+    Raises DataValidationError if the file fails any check. Results are cached until the file
+    changes (path, size and modification time), so repeated tool calls do not re-validate.
+    Callers must treat the returned frames as read-only.
     """
-    path = Path(path)
+    path = Path(path).resolve()
+    stat = path.stat()
+    return _load_cached(str(path), stat.st_size, stat.st_mtime_ns, gallery_id, edition_id)
+
+
+@lru_cache(maxsize=16)
+def _load_cached(path_str: str, size: int, mtime_ns: int, gallery_id: str, edition_id: str) -> ProcessedData:
+    path = Path(path_str)
     raw = pd.read_csv(path, dtype=str, keep_default_na=False)
     if list(raw.columns) != COLUMNS:
         raise DataValidationError([f"columns must be exactly {COLUMNS}, found {list(raw.columns)}"])

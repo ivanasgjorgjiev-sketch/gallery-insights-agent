@@ -460,8 +460,14 @@ PROHIBITED_CLAIMS = [
     (r"(unique|distinct|different) (people|persons|visitors|individuals)|\bvisitors\b", "distinct-people claim"),
     (r"\bcollector[s]? (name|identity|identities|contact)", "collector identity"),
 ]
-PROHIBITED_ACTIONS = r"discount|reduce (the )?price|change (the )?price|raise (the )?price|pricing decision|" \
-                     r"contact (the )?collectors|email (the )?collectors|send (a )?message"
+# Recommending or claiming a commercial/external action (negated mentions such as "I can't contact
+# anyone" are allowed by _asserted()).
+PROHIBITED_ACTIONS = (r"discount|(reduc|chang|rais|lower|updat|adjust|increas|decreas)(e|es|ed|ing) (the |its |their )?"
+                      r"prices?|pricing decision|contact(s|ed|ing)? (the |any |interested )?(collectors|buyers|clients)|"
+                      r"e-?mail(s|ed|ing)? (the |any )?(collectors|buyers|clients)|"
+                      r"notif(y|ied|ies|ying) (the |any )?(collectors|buyers|clients)|"
+                      r"sen(d|t|ds|ding) (a |an |the )?(message|e-?mail|notification|offer)|"
+                      r"(highlighted|promoted|featured) (the )?artwork|assign(ed)? (a )?task")
 SAFE_NEXT_STEP = "Review the engagement evidence and decide whether further investigation is worthwhile."
 CAUSE_SEEKING_STEP = (r"coincid|what (may |might |could )?(have )?(caused|driven|drove|triggered|explains?)|"
                       r"why (the |this |it |views |engagement )|reasons? (for|behind)|\bdrivers?\b|attribut")
@@ -576,20 +582,23 @@ def validate_evidence(insight: dict) -> dict:
         checked.append({"claim": label, "verified": ok, "source": {"total": true_total, "parts": parts}})
         allowed_numbers.update(float(x) for x in [true_total, *parts])
 
-    # Every number written in the text must come from verified evidence.
-    allowed_numbers.update(float(n) for n in range(1, len(data.processed_dates) + len(data.excluded_dates) + 1))
-    for d in data.processed_dates:
-        allowed_numbers.update(float(p) for p in d.split("-"))
+    # Every number written in the text must match a verified fact *in context* (right artwork,
+    # metric, date and kind of number), not merely appear somewhere in the evidence.
+    from gia import grounding
+    gdata = grounding._Data()
+    facts = [f for f in grounding.facts_from_insight(insight) if grounding.verify_fact(f, gdata) is None]
+    for t in totals:
+        if t.get("scope") == "artist" and t.get("metric") in SUMMABLE_METRICS and t.get("id") in artists:
+            agg = aggregate_artist_metrics(t["id"], [t["metric"]])["totals"][t["metric"]]
+            facts += [grounding.Fact(a["artwork_id"], t["metric"], "total", a["total_events"])
+                      for a in agg["per_artwork"]]
     text_parts = {f: str(insight.get(f) or "") for f in TEXT_FIELDS}
     text_parts["limitations"] = " ".join(str(x) for x in limitations)
     for field, text in text_parts.items():
         for iso in re.findall(r"\d{4}-\d{2}-\d{2}", text):
             if iso not in data.processed_dates and not (field == "limitations" and iso in data.excluded_dates):
                 errors.append(f"{field}: date {iso} is not a processed fair date")
-        cleaned = re.sub(r"\d{4}-\d{2}-\d{2}|\b[A-Z]+\d+\b", " ", text)
-        for num in re.findall(r"\d+(?:\.\d+)?", cleaned):
-            if float(num) not in allowed_numbers:
-                errors.append(f"{field}: number {num} is not supported by the verified evidence")
+        errors += [f"{field}: {p}" for p in grounding.check_text(text, facts, data=gdata)]
 
     # Next-step *action policy* is checked separately from factual validity: the publication gate may
     # replace a non-compliant next step with SAFE_NEXT_STEP, but never repairs factual errors.

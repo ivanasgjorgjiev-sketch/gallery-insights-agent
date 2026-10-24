@@ -305,7 +305,7 @@ def test_day5_evidence_rejected():
 
 def test_unverified_number_in_text_rejected():
     r = validate_evidence(a1_insight(observed_signal="Artwork views rose to 436 events."))
-    assert any("number 436" in e for e in r["errors"])
+    assert any("'436' is not a verified value" in e for e in r["errors"])
 
 
 def test_causal_and_purchase_claims_rejected_but_negations_allowed():

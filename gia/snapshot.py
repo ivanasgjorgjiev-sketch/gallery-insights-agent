@@ -60,7 +60,7 @@ def _recorded_followup(f) -> dict:
     """Only grounded, shown answers are recorded; validate_evidence calls (which carry draft text) are
     left out, so an answer that depended on them will simply fail re-verification and not be replayed."""
     return {"question": f.question, "insight_id": f.insight_id, "answer_type": f.answer_type,
-            "answer": f.answer, "limitations": f.limitations,
+            "answer": f.answer, "limitations": f.limitations, "facts": f.facts,
             "tool_calls": [c for c in f.tool_calls if c["tool"] != "validate_evidence"],
             "recorded_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}
 

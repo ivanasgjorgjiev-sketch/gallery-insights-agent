@@ -40,7 +40,7 @@ def test_tc03_grounded_answer_uses_tool_and_is_shown():
 def test_number_not_in_tool_output_is_withheld():
     f = answer_with({"answer_type": "answer", "answer": "Artist A received 420 view events.", "limitations": []},
                     ARTIST_TOOL)
-    assert f.status == "withheld" and "number 420" in f.grounding_errors[0]
+    assert f.status == "withheld" and "'420' is not a verified value" in f.grounding_errors[0]
 
 
 def test_quantitative_answer_without_a_tool_call_is_withheld():
@@ -87,7 +87,8 @@ def test_prohibited_claims_in_answers_are_withheld(bad, problem):
     "416 is a count of view events, not 416 different people.",
 ])
 def test_negated_boundaries_are_allowed(ok):
-    f = answer_with({"answer_type": "answer", "answer": ok, "limitations": []}, ARTIST_TOOL)
+    f = answer_with({"answer_type": "answer", "answer": ok, "limitations": [],
+                     "facts": [fx.FACT("AR01", "artwork_views", "total", 416)]}, ARTIST_TOOL)
     assert f.status == "answered", f.grounding_errors
 
 
