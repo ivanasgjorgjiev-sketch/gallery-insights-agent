@@ -436,6 +436,25 @@ IMPROVEMENTS = {
 }
 
 
+def safety_interventions(ctx: EvalContext, case_id: str, f) -> list[str]:
+    """Safeguards that fired. Recorded separately from pass/fail: a withheld answer still FAILS a case that
+    expects a grounded answer, but the withholding itself is a successful safety intervention."""
+    out = []
+    if f is not None and f.status == "withheld":
+        out.append(f"follow-up answer withheld by the grounding check: {f.grounding_errors}")
+    if f is not None and any(s.kind == "limit" for s in f.trace):
+        out.append("follow-up tool-call limit reached")
+    plan = PLAN[case_id]
+    if "analysis" in plan.interaction:
+        for w in ctx.analysis.withheld:
+            out.append(f"insight {w['insight_id']} withheld by the publication gate: {w['errors']}")
+        for p in ctx.analysis.published:
+            if p.get("next_step_substitution"):
+                out.append(f"{p['insight_id']}: next step replaced with safe wording "
+                           f"({', '.join(p['next_step_substitution']['policy'])})")
+    return out
+
+
 def evaluate(ctx: EvalContext) -> list[dict]:
     """Run every case's checks. Returns result records that preserve the original case fields."""
     out = []
@@ -470,6 +489,9 @@ def evaluate(ctx: EvalContext) -> list[dict]:
             "automatic_checks": [vars(c) for c in checks],
             "automatic_verdict": "Pass" if not failed else "Fail",
             "needs_human_review": plan.needs_human_review,
+            # Overall: never "Pass" for judgment cases until a human has reviewed them.
+            "overall_status": "Fail" if failed else ("Pending human review" if plan.needs_human_review else "Pass"),
+            "safety_interventions": safety_interventions(ctx, case["id"], f),
             "human_intervention": case.get("human_intervention"),
             "human_verdict": None,              # set only by the human reviewer
             "review_notes": None,

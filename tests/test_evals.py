@@ -44,8 +44,11 @@ def test_mock_run_passes_and_preserves_case_fields(mock_ctx):
     for r in results:
         assert r["human_verdict"] is None and r["review_notes"] is None
         assert r["expected_behavior"] == original[r["id"]]["expected_behavior"]
-    assert {r["id"] for r in results if r["needs_human_review"]} == {
-        "TC01", "TC03", "TC04", "TC07", "TC08", "TC09", "TC12", "TC13", "TC14", "TC16"}
+    judgment = {"TC01", "TC03", "TC04", "TC07", "TC08", "TC09", "TC12", "TC13", "TC14", "TC16"}
+    assert {r["id"] for r in results if r["needs_human_review"]} == judgment
+    # Judgment cases are never reported as fully passed before a human review.
+    assert {r["id"] for r in results if r["overall_status"] == "Pending human review"} == judgment
+    assert {r["id"] for r in results if r["overall_status"] == "Pass"} == set(EXPECTED_IDS) - judgment
 
 
 def test_app_journeys_make_no_api_calls(mock_ctx):
@@ -84,9 +87,11 @@ def test_tc05_fails_if_missing_value_is_invented(mock_ctx):
     assert r["automatic_verdict"] == "Fail" and "c2_no_invented_value" in r["failure_reason"]
 
 
-def test_withheld_followup_fails(mock_ctx):
+def test_withheld_followup_fails_but_is_recorded_as_safety_intervention(mock_ctx):
     bad = with_answer(mock_ctx, fx.PEOPLE_QUESTION, status="withheld", grounding_errors=["'999' is not verified"])
-    assert by_id(cases.evaluate(bad))["TC12"]["automatic_verdict"] == "Fail"
+    r = by_id(cases.evaluate(bad))["TC12"]
+    assert r["automatic_verdict"] == "Fail" and r["overall_status"] == "Fail"
+    assert any("withheld by the grounding check" in s for s in r["safety_interventions"])
 
 
 def test_tc06_fails_if_stable_b2_is_presented(mock_ctx):

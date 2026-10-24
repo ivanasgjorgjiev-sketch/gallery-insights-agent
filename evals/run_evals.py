@@ -126,18 +126,25 @@ def app_journeys(analysis) -> dict:
 def write_report(run_dir: Path, mode: str, analysis, answers, results: list[dict]) -> None:
     total = (analysis.estimated_cost_usd or 0) + sum(f.estimated_cost_usd or 0 for f in answers.values())
     passed = sum(r["automatic_verdict"] == "Pass" for r in results)
+    status = {s: sum(r["overall_status"] == s for r in results) for s in ("Pass", "Pending human review", "Fail")}
+    usage = {k: analysis.usage[k] + sum(f.usage[k] for f in answers.values()) for k in analysis.usage}
     lines = [f"# Evaluation report ({mode})", "",
              f"- Run: {run_dir.name}",
              f"- Model: {analysis.model} · analysis status: {analysis.status} · "
              f"{analysis.tool_calls} tool calls · {len(answers)} follow-up questions",
              "- Estimated API cost: " + ("n/a (mock: no API calls)" if mode == "mock" else f"${total:.3f}"),
-             f"- Automatic checks: **{passed}/{len(results)} cases pass**; "
-             f"{sum(r['needs_human_review'] for r in results)} cases also need a human verdict", "",
-             "| Case | Interaction | Automatic | Human review | Failed checks |", "|---|---|---|---|---|"]
+             f"- Tokens: {usage['input_tokens']:,} input, {usage['cache_creation_input_tokens']:,} cache writes, "
+             f"{usage['cache_read_input_tokens']:,} cache reads, {usage['output_tokens']:,} output"
+             + (" (mock values)" if mode == "mock" else ""),
+             f"- Automatic checks: {passed}/{len(results)} cases pass",
+             f"- **Overall: {status['Pass']} Pass · {status['Pending human review']} Pending human review · "
+             f"{status['Fail']} Fail**", "",
+             "| Case | Interaction | Automatic | Overall status | Failed checks | Safety interventions |",
+             "|---|---|---|---|---|---|"]
     for r in results:
         failed = ", ".join(c["name"] for c in r["automatic_checks"] if not c["passed"]) or "—"
-        lines.append(f"| {r['id']} | {r['interaction']} | {r['automatic_verdict']} | "
-                     f"{'needed (empty)' if r['needs_human_review'] else 'not required'} | {failed} |")
+        lines.append(f"| {r['id']} | {r['interaction']} | {r['automatic_verdict']} | {r['overall_status']} | "
+                     f"{failed} | {len(r['safety_interventions']) or '—'} |")
     lines += ["", "## Unresolved risks", "",
               "- Grounding is a transparent heuristic (nearest artwork/metric/date per sentence): unusual phrasing "
               "can be withheld (safe) and subtle misstatements without numbers rely on keyword checks and human review.",
