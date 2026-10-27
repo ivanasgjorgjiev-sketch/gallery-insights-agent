@@ -451,9 +451,31 @@ def detect_engagement_patterns(metric: str = "artwork_views", artwork_ids: list[
 SIGNAL_TYPES = set(HANDLING)
 TEXT_FIELDS = ["title", "observed_signal", "why_it_may_matter", "suggested_next_step"]
 
+# Affirmative claims that someone intends, wants or is likely to buy, or that an artwork will sell. Built from
+# a verb or noun of intention/likelihood next to buy/purchase/acquire/sell, so plain mentions of the words
+# ("Purchase data is not available", "purchase decisions remain with you") are not matched.
+BUY = r"(buy|purchase|acquire)"
+PURCHASE_INTENT = (
+    r"purchase intent|intent to (buy|purchase)|(likely|going|ready) to (buy|purchase|sell)|will sell|"
+    r"(sales|purchase) (forecast|prediction)|"
+    r"\b(intends?|intended|intending|plans?|planned|planning|wants?|wanted|wanting|wish(es|ing)?|hop(es?|ing)|"
+    r"aim(s|ing)?|means?|meant|eager|keen|about|set|poised|expect(s|ed|ing)?|bound|certain|sure|looking|"
+    rf"prepar(ed|ing)|willing)\s+to\s+{BUY}\b|"
+    r"\binterested in (buying|purchasing|acquiring)\b|"
+    r"\b(intentions?|plans?|desire|readiness|willingness|likelihood|propensity|probability|chances?)\s+(to|of)\s+"
+    r"(buy|buying|purchase|purchasing|acquire|acquiring)\b|"
+    r"\b(buying|purchas(e|ing))\s+(intentions?|interest|signals?|readiness)\b|"
+    rf"\b(will|would|may|might|could|should|shall)\s+((\w+ly|soon)\s+)?({BUY}|sell)\b|"
+    r"\b(will|would|may|might|could|should|going to|likely to|about to)\s+((\w+ly|soon)\s+)?be\s+"
+    r"(bought|purchased|sold|acquired)\b")
+# A purchase claim raised as an open question ("whether collectors intend to buy", "It is unclear if…")
+# is not asserted. "if" alone does not hedge ("If the trend continues, collectors will buy A1" predicts).
+# Only purchase claims get this exemption; actions in next steps stay strict.
+PURCHASE_HEDGE = re.compile(r"\b(whether|unclear|unknown|uncertain|impossible|nothing)\b[^.;]*$", re.IGNORECASE)
+CLAIM_HEDGES = {PURCHASE_INTENT: PURCHASE_HEDGE}
+
 PROHIBITED_CLAIMS = [
-    (r"purchase intent|intent to (buy|purchase)|(likely|going|ready) to (buy|purchase|sell)|will sell|"
-     r"(sales|purchase) (forecast|prediction)", "purchase intent or sales prediction"),
+    (PURCHASE_INTENT, "purchase intent or sales prediction"),
     (r"guarantee", "guarantee"),
     (r"\b(caused|causes|driven by (the|our|a) (campaign|marketing|promotion)|because of (the|our) "
      r"(campaign|marketing|promotion)|due to (the|our) (campaign|marketing|promotion))", "causal claim"),
@@ -498,11 +520,13 @@ def _asserted(pattern: str, text: str) -> list[str]:
     A clause ends at sentence punctuation or a contrast word ("I can't contact collectors, but you
     could offer a discount" asserts the discount). Commas do not end a clause, so a negated list
     ("I can't contact anyone, change prices or offer discounts") stays negated."""
+    hedge = CLAIM_HEDGES.get(pattern)
     hits = []
     for m in re.finditer(pattern, text, re.IGNORECASE):
         boundaries = [b.end() for b in CONTRAST.finditer(text, 0, m.start())]
         clause_start = boundaries[-1] if boundaries else 0
-        if not NEGATION.search(text[clause_start:m.start()]):
+        before = text[clause_start:m.start()]
+        if not NEGATION.search(before) and not (hedge and hedge.search(before)):
             hits.append(m.group(0))
     return hits
 

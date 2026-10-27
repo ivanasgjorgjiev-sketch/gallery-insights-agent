@@ -197,6 +197,10 @@ def test_tampered_recorded_answer_is_dropped(tmp_path):
 
 
 # --- The app: LIVE and DEMO separation, review state untouched ------------------------------------
+# Open-ended follow-ups are hidden in the M8 MVP; these tests switch them back on to keep the preserved
+# implementation covered.
+FOLLOWUPS_ON = {"GIA_ENABLE_FOLLOWUPS": "1"}
+
 
 def app(monkeypatch, settings, result):
     monkeypatch.setattr(config, "_setting", lambda name: settings.get(name))
@@ -208,7 +212,8 @@ def app(monkeypatch, settings, result):
 def test_demo_shows_recorded_examples_without_input_or_api(monkeypatch, tmp_path):
     path = recording_with_followups(tmp_path, [fx.mock_tc03_followup(), fx.mock_best_followup()])
     monkeypatch.setattr(anthropic, "Anthropic", lambda *a, **k: pytest.fail("API client created"))
-    at = app(monkeypatch, {"ANTHROPIC_API_KEY": "sk-ant-test-0000"}, snapshot.load_snapshot(path)).run(timeout=30)
+    at = app(monkeypatch, {"ANTHROPIC_API_KEY": "sk-ant-test-0000", **FOLLOWUPS_ON},
+             snapshot.load_snapshot(path)).run(timeout=30)
     assert not at.exception
     assert len(at.text_area) == 0                                         # no free-form questions in DEMO
     assert any("free-form questions are available only in the live version" in c.value for c in at.caption)
@@ -220,7 +225,8 @@ def test_live_question_runs_tools_and_leaves_review_unchanged(monkeypatch):
     script = ARTIST_TOOL + [response("end_turn", text(json.dumps(fx.TC03_ANSWER)))]
     monkeypatch.setattr(anthropic, "Anthropic", lambda *a, **k: FakeClient(copy.deepcopy(script)))
     result = fx.mock_three_insight_result()
-    at = app(monkeypatch, {"GIA_MODE": "live", "ANTHROPIC_API_KEY": "sk-ant-test-0000"}, result).run(timeout=30)
+    at = app(monkeypatch, {"GIA_MODE": "live", "ANTHROPIC_API_KEY": "sk-ant-test-0000", **FOLLOWUPS_ON},
+             result).run(timeout=30)
     before = copy.deepcopy(at.session_state["review"].progress())
     at.text_area[0].input(fx.TC03_QUESTION)
     at.button(key="FormSubmitter:followup-form-Ask").click().run(timeout=30)
@@ -234,7 +240,7 @@ def test_live_question_runs_tools_and_leaves_review_unchanged(monkeypatch):
 def test_live_followup_session_limit(monkeypatch):
     monkeypatch.setattr(anthropic, "Anthropic", lambda *a, **k: pytest.fail("API client created"))
     at = app(monkeypatch, {"GIA_MODE": "live", "ANTHROPIC_API_KEY": "sk-ant-test-0000",
-                           "GIA_MAX_FOLLOWUPS_PER_SESSION": "2"}, fx.mock_three_insight_result())
+                           "GIA_MAX_FOLLOWUPS_PER_SESSION": "2", **FOLLOWUPS_ON}, fx.mock_three_insight_result())
     at.session_state["followups_asked"] = 2
     at.run(timeout=30)
     assert len(at.text_area) == 0
@@ -242,5 +248,5 @@ def test_live_followup_session_limit(monkeypatch):
 
 
 def test_live_without_key_has_no_question_box(monkeypatch):
-    at = app(monkeypatch, {"GIA_MODE": "live"}, fx.mock_three_insight_result()).run(timeout=30)
+    at = app(monkeypatch, {"GIA_MODE": "live", **FOLLOWUPS_ON}, fx.mock_three_insight_result()).run(timeout=30)
     assert len(at.text_area) == 0

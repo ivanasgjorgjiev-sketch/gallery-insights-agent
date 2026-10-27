@@ -1,0 +1,298 @@
+{
+  "recorded_at": "2026-10-26T19:53:08+00:00",
+  "question": "Why should I pay more attention to Artwork A1 than Artwork A2, and what evidence supports that?",
+  "answer_type": "answer",
+  "answer": "On the processed days, A1 has stronger evidence of a lasting rise in views than A2. Both artworks are still flagged as sustained growth, so A2 is not being ignored. A1's evidence is just better supported.\n\n**Views:** A1 went from 40 to 80 between 2026-10-14 and 2026-10-15, a change of +40 (+100.0%). It stayed high at 76 on 2026-10-16 and 90 on 2026-10-17. A2 went from 25 to 35, a change of +10 (+40.0%). It then had 32 and 38 on the later days. A2's rise just clears the minimum thresholds. The minimums are +30% and +10 views, and A2 is at +40% and +10.\n\n**Corroborating metrics (2026-10-14 to 2026-10-15):**\n- Daily unique viewers for A1 rose from 30 to 45, a change of +15 (+50.0%). For A2 they rose from 20 to 26, a change of +6 (+30.0%). Both counted as support.\n- Favourites for A1 rose from 5 to 12, a change of +7 (+140.0%). That counted as support. For A2 they rose from 3 to 4, a change of +1 (+33.3%). That is below the +3 minimum, so it did not count.\n- Inquiries were 0 on both days for both artworks, so there is no change. A percentage can't be calculated from a zero baseline.\n\nA1 is corroborated by two other metrics and A2 by one. That is why A1 is labelled higher-confidence and A2 moderate-confidence.",
+  "limitations": [
+    "These are screening rules on four processed days (2026-10-14 to 2026-10-17). They are not statistical tests, and the confidence labels only reflect how many metrics support the pattern.",
+    "The data shows what happened, not why. It does not show purchase intent, sales or who the viewers were.",
+    "Views and favourites are event counts, not people. Daily unique viewers count people for one artwork on one day only and should not be added across days.",
+    "2026-10-18 is not processed and is excluded from all of this."
+  ],
+  "facts": [
+    {
+      "subject": "A001",
+      "metric": "artwork_views",
+      "measure": "value",
+      "value": 40,
+      "start_date": "2026-10-14",
+      "end_date": ""
+    },
+    {
+      "subject": "A001",
+      "metric": "artwork_views",
+      "measure": "value",
+      "value": 80,
+      "start_date": "2026-10-15",
+      "end_date": ""
+    },
+    {
+      "subject": "A001",
+      "metric": "artwork_views",
+      "measure": "change",
+      "value": 40,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A001",
+      "metric": "artwork_views",
+      "measure": "percent_change",
+      "value": 100.0,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A001",
+      "metric": "artwork_views",
+      "measure": "value",
+      "value": 76,
+      "start_date": "2026-10-16",
+      "end_date": ""
+    },
+    {
+      "subject": "A001",
+      "metric": "artwork_views",
+      "measure": "value",
+      "value": 90,
+      "start_date": "2026-10-17",
+      "end_date": ""
+    },
+    {
+      "subject": "A002",
+      "metric": "artwork_views",
+      "measure": "value",
+      "value": 25,
+      "start_date": "2026-10-14",
+      "end_date": ""
+    },
+    {
+      "subject": "A002",
+      "metric": "artwork_views",
+      "measure": "value",
+      "value": 35,
+      "start_date": "2026-10-15",
+      "end_date": ""
+    },
+    {
+      "subject": "A002",
+      "metric": "artwork_views",
+      "measure": "change",
+      "value": 10,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A002",
+      "metric": "artwork_views",
+      "measure": "percent_change",
+      "value": 40.0,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A002",
+      "metric": "artwork_views",
+      "measure": "value",
+      "value": 32,
+      "start_date": "2026-10-16",
+      "end_date": ""
+    },
+    {
+      "subject": "A002",
+      "metric": "artwork_views",
+      "measure": "value",
+      "value": 38,
+      "start_date": "2026-10-17",
+      "end_date": ""
+    },
+    {
+      "subject": "A001",
+      "metric": "unique_artwork_viewers",
+      "measure": "value",
+      "value": 30,
+      "start_date": "2026-10-14",
+      "end_date": ""
+    },
+    {
+      "subject": "A001",
+      "metric": "unique_artwork_viewers",
+      "measure": "value",
+      "value": 45,
+      "start_date": "2026-10-15",
+      "end_date": ""
+    },
+    {
+      "subject": "A001",
+      "metric": "unique_artwork_viewers",
+      "measure": "change",
+      "value": 15,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A001",
+      "metric": "unique_artwork_viewers",
+      "measure": "percent_change",
+      "value": 50.0,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A002",
+      "metric": "unique_artwork_viewers",
+      "measure": "value",
+      "value": 20,
+      "start_date": "2026-10-14",
+      "end_date": ""
+    },
+    {
+      "subject": "A002",
+      "metric": "unique_artwork_viewers",
+      "measure": "value",
+      "value": 26,
+      "start_date": "2026-10-15",
+      "end_date": ""
+    },
+    {
+      "subject": "A002",
+      "metric": "unique_artwork_viewers",
+      "measure": "change",
+      "value": 6,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A002",
+      "metric": "unique_artwork_viewers",
+      "measure": "percent_change",
+      "value": 30.0,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A001",
+      "metric": "favourites",
+      "measure": "value",
+      "value": 5,
+      "start_date": "2026-10-14",
+      "end_date": ""
+    },
+    {
+      "subject": "A001",
+      "metric": "favourites",
+      "measure": "value",
+      "value": 12,
+      "start_date": "2026-10-15",
+      "end_date": ""
+    },
+    {
+      "subject": "A001",
+      "metric": "favourites",
+      "measure": "change",
+      "value": 7,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A001",
+      "metric": "favourites",
+      "measure": "percent_change",
+      "value": 140.0,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A002",
+      "metric": "favourites",
+      "measure": "value",
+      "value": 3,
+      "start_date": "2026-10-14",
+      "end_date": ""
+    },
+    {
+      "subject": "A002",
+      "metric": "favourites",
+      "measure": "value",
+      "value": 4,
+      "start_date": "2026-10-15",
+      "end_date": ""
+    },
+    {
+      "subject": "A002",
+      "metric": "favourites",
+      "measure": "change",
+      "value": 1,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A002",
+      "metric": "favourites",
+      "measure": "percent_change",
+      "value": 33.3,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A001",
+      "metric": "inquiries",
+      "measure": "change",
+      "value": 0,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    },
+    {
+      "subject": "A002",
+      "metric": "inquiries",
+      "measure": "change",
+      "value": 0,
+      "start_date": "2026-10-14",
+      "end_date": "2026-10-15"
+    }
+  ],
+  "tool_calls": [
+    {
+      "tool": "get_processed_data",
+      "arguments": {}
+    },
+    {
+      "tool": "detect_engagement_patterns",
+      "arguments": {
+        "metric": "artwork_views",
+        "artwork_ids": [
+          "A001",
+          "A002"
+        ]
+      }
+    },
+    {
+      "tool": "get_processed_data",
+      "arguments": {}
+    },
+    {
+      "tool": "get_processed_data",
+      "arguments": {}
+    },
+    {
+      "tool": "get_processed_data",
+      "arguments": {}
+    },
+    {
+      "tool": "get_processed_data",
+      "arguments": {}
+    },
+    {
+      "tool": "get_processed_data",
+      "arguments": {}
+    },
+    {
+      "tool": "get_processed_data",
+      "arguments": {}
+    }
+  ],
+  "grounding_problems": [
+    "'+30%' is described as artwork_views but the verified figure is for unique_artwork_viewers"
+  ],
+  "note": "Verbatim LIVE answer withheld during Milestone 8 exploration (claude-sonnet-5-5); from local diagnostics."
+}

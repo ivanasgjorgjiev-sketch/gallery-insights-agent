@@ -48,8 +48,27 @@ NUMBER = re.compile(r"(?<![\w.])([+\-−]?)(\d+(?:\.\d+)?)(\s?%)?")
 SUM_EXPR = re.compile(r"(\d+(?:\.\d+)?(?:\s*[+−-]\s*\d+(?:\.\d+)?)+)\s*=\s*(\d+(?:\.\d+)?)")
 # "286 views (40 + 80 + 76 + 90)": a figure followed by its breakdown in brackets
 BREAKDOWN = re.compile(r"(\d+(?:\.\d+)?)(?:\s+[A-Za-z\-]+){0,3}\s*\(\s*(\d+(?:\.\d+)?(?:\s*\+\s*\d+(?:\.\d+)?)+)\s*\)")
-BOUND_DATE_GAP = re.compile(r"^\s*(?:[A-Za-z\-]+\s+){0,3}?(?:on|for)\s+$", re.IGNORECASE)
-RULE_WORDS = re.compile(r"\b(threshold|minimum|at least|rule|criteria|criterion|screening)\b", re.IGNORECASE)
+BOUND_DATE_GAP = re.compile(r"^\s*(?:[A-Za-z\-]+\s+){0,3}?(?:on|for)\s+(?:the\s+)?$", re.IGNORECASE)
+# "57 favourites": a metric named right after a number describes that number (lists of several metrics).
+BOUND_METRIC_GAP = re.compile(r"^\s*(?:more|fewer|additional|extra|new|total|daily|combined)?\s*$", re.IGNORECASE)
+# Date ranges: "Oct 14 to 15", "14–15 October", "between the 14th and 15th", "Oct 14→15", "2026-10-14 to 2026-10-17".
+RANGE_WORD = r"(?:to|through|until|till|and|-|–|—|→|->)"
+RANGE_GAP = re.compile(rf"^\s*{RANGE_WORD}\s*(?:the\s+)?$", re.IGNORECASE)
+BETWEEN = re.compile(r"\bbetween\s+(?:the\s+)?$", re.IGNORECASE)
+ORDINAL_DAY = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)\b")
+# A bare day after a dated anchor ("Oct 14 to 15"), unless it reads as a value ("to 15 on ...", "to 15 views").
+DAY_AFTER = re.compile(rf"^\s*({RANGE_WORD})\s*(?:the\s+)?(\d{{1,2}})(?:st|nd|rd|th)?\b(?!\s*(?:%|[.,]\d|on\b|for\b))",
+                       re.IGNORECASE)
+# A bare day before a dated anchor ("from 14 to 15 October", "(14–15 Oct)").
+DAY_BEFORE = re.compile(rf"(?:\b(?:from|between|on|over|during)\s+(?:the\s+)?|\()(\d{{1,2}})(?:st|nd|rd|th)?"
+                        rf"\s*({RANGE_WORD})\s*(?:the\s+)?$", re.IGNORECASE)
+VALUE_ON = re.compile(r"\d\s+(?:on|for)\s+$", re.IGNORECASE)      # "15 on Oct 14": the date belongs to a value
+RULE_WORDS = re.compile(r"\b(thresholds?|minimums?|minima|at least|rules?|criteria|criterion|screening)\b",
+                        re.IGNORECASE)
+# A figure written as a threshold itself: "the +3 minimum", "the minimums are +30%", "the rule of at least 30%".
+THRESHOLD_AFTER = re.compile(r"^\s*(?:[A-Za-z\-]+\s+)?(minimums?|thresholds?)\b", re.IGNORECASE)
+THRESHOLD_BEFORE = re.compile(r"\b(minimums?|thresholds?|rules?)\s+(?:of|is|are|was|were)\s*(?:at least\s*)?$",
+                              re.IGNORECASE)
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?;])\s+|\n+")
 AGGREGATE_WORDS = re.compile(r"\b(combined|in total|total|together|altogether|across both|overall)\b", re.IGNORECASE)
 
@@ -206,17 +225,99 @@ def _subject_patterns(data: _Data) -> list[tuple[re.Pattern, str]]:
     return pats
 
 
-def _dates_in(sentence: str, year: str) -> list[tuple[int, str, tuple[int, int]]]:
+def _dates_in(sentence: str, year: str, fair_dates: frozenset[str] = frozenset()
+              ) -> list[tuple[int, str, tuple[int, int]]]:
+    """Dates written in a sentence. Day numbers without a month ("the 14th", the 15 in "Oct 14 to 15")
+    count as dates only when they name a fair date (processed or excluded) in the anchor's month."""
     found = []
     for m in ISO_DATE.finditer(sentence):
         found.append((m.start(), m.group(0), m.span()))
+    anchors = []                                   # (match, iso) for dates written with a month name
     for m in MONTH_DAY.finditer(sentence):
-        found.append((m.start(), f"{m.group(3) or year}-{MONTHS[m.group(1)[:3].lower()]:02d}-{int(m.group(2)):02d}",
-                      m.span()))
+        anchors.append((m, f"{m.group(3) or year}-{MONTHS[m.group(1)[:3].lower()]:02d}-{int(m.group(2)):02d}"))
     for m in DAY_MONTH.finditer(sentence):
-        found.append((m.start(), f"{m.group(3) or year}-{MONTHS[m.group(2)[:3].lower()]:02d}-{int(m.group(1)):02d}",
-                      m.span()))
-    return found
+        anchors.append((m, f"{m.group(3) or year}-{MONTHS[m.group(2)[:3].lower()]:02d}-{int(m.group(1)):02d}"))
+    found += [(m.start(), iso, m.span()) for m, iso in anchors]
+
+    def free(a: int, b: int) -> bool:
+        return not any(s < b and a < e for _, _, (s, e) in found)
+
+    def bare(anchor_iso: str, day: str) -> str | None:
+        iso = f"{anchor_iso[:8]}{int(day):02d}"
+        return iso if iso in fair_dates else None
+
+    for m, iso in anchors:
+        after = DAY_AFTER.match(sentence[m.end():])
+        if after and not VALUE_ON.search(sentence[:m.start()]) and \
+                not METRIC_RE.match(sentence[m.end() + after.end():].lstrip()):
+            day_iso = bare(iso, after.group(2))
+            a, b = m.end() + after.start(2), m.end() + after.end(2)
+            if day_iso and day_iso > iso and free(a, b) and \
+                    (after.group(1).lower() != "and" or BETWEEN.search(sentence[:m.start()])):
+                found.append((a, day_iso, (a, b)))
+        before = DAY_BEFORE.search(sentence[:m.start()])
+        if before:
+            day_iso = bare(iso, before.group(1))
+            a, b = before.start(1), before.end(1)
+            if day_iso and day_iso < iso and free(a, b) and \
+                    (before.group(2).lower() != "and" or BETWEEN.search(sentence[:a])):
+                found.append((a, day_iso, (a, b)))
+    if fair_dates:
+        month = min(fair_dates)[:8]
+        for m in ORDINAL_DAY.finditer(sentence):
+            iso = f"{month}{int(m.group(1)):02d}"
+            if iso in fair_dates and free(*m.span()):
+                found.append((m.start(), iso, m.span()))
+    return sorted(found)
+
+
+def _link_ranges(sentence: str, found: list[tuple[int, str, tuple[int, int]]]) -> list[tuple[int, str | tuple]]:
+    """Date mentions for attribution. Two dates joined as a range ("Oct 14 to 15", "between the 14th and
+    15th") become one (start, end) mention at both positions; "and" counts only after "between"."""
+    mentions: list[tuple[int, str | tuple]] = [(pos, iso) for pos, iso, _ in found]
+    for i in range(len(found) - 1):
+        (_, iso_a, (sa, ea)), (_, iso_b, (sb, _)) = found[i], found[i + 1]
+        gap = sentence[ea:sb]
+        if iso_a == iso_b or not RANGE_GAP.match(gap):
+            continue
+        if gap.strip().lower().startswith("and") and not BETWEEN.search(sentence[:sa]):
+            continue
+        span = tuple(sorted((iso_a, iso_b)))
+        mentions[i], mentions[i + 1] = (mentions[i][0], span), (mentions[i + 1][0], span)
+    return mentions
+
+
+def _date_matches(fact: Fact, date: str | tuple) -> bool:
+    """A figure described with a date: a daily value must be on that date (or a range's start or end);
+    a change must cover exactly that range; totals cover all processed days."""
+    if fact.measure == "total":
+        return True
+    if isinstance(date, tuple):
+        if fact.measure in ("change", "percent_change"):
+            return (fact.start_date, fact.end_date) == date
+        return fact.start_date in date
+    return date in fact.dates()
+
+
+def _is_rule_value(value: float, is_pct: bool, metric: str | None) -> bool:
+    """Whether a figure written next to rule wording is one of the approved screening-rule values, of the
+    right kind: a rule percentage; the metric's own minimum change (any metric's when none is named);
+    or the number of later days."""
+    rules = tools.PATTERN_RULES
+    if is_pct:
+        return value in {float(rules["min_increase_pct"]), float(rules["support_min_pct"]),
+                         rules["min_gain_retained"] * 100, rules["stable_tolerance"] * 100}
+    minimums = {m: float(v) for m, v in rules["min_absolute_change"].items()}
+    if value == float(rules["min_later_days"]):
+        return True
+    return value == minimums.get(metric) if metric else value in minimums.values()
+
+
+def _blank(text: str, spans) -> str:
+    chars = list(text)
+    for a, b in spans:
+        chars[a:b] = " " * (b - a)
+    return "".join(chars)
 
 
 def _nearest(mentions: list[tuple[int, str]], pos: int) -> str | None:
@@ -229,32 +330,33 @@ def _nearest(mentions: list[tuple[int, str]], pos: int) -> str | None:
 
 
 def check_text(text: str, facts: list[Fact], extra_numbers: set[float] = frozenset(),
-               data: _Data | None = None, tool_numbers: set[float] | None = None) -> list[str]:
+               data: _Data | None = None, tool_numbers: set[float] | None = None,
+               identifiers: tuple[str, ...] | list[str] = ()) -> list[str]:
     """Problems with numbers in `text` given verified `facts` (empty list = grounded).
 
     tool_numbers: numbers returned by tools in this question (follow-ups). When given, the parts of a
-    written sum must also appear there; insights pass None."""
+    written sum must also appear there; insights pass None.
+    identifiers: exact internal IDs (e.g. published insight IDs) whose digits are part of a name, not a figure."""
     data = data or _Data()
     year = data.overview["processed_dates"][0][:4]
     subject_pats = _subject_patterns(data)
-    rule_values = {float(tools.PATTERN_RULES[k]) for k in ("min_increase_pct", "support_min_pct", "min_later_days")}
-    rule_values |= {float(v) for v in tools.PATTERN_RULES["min_absolute_change"].values()}
-    rule_values |= {tools.PATTERN_RULES["min_gain_retained"] * 100, tools.PATTERN_RULES["stable_tolerance"] * 100}
     problems: list[str] = []
     excluded = {e["date"] for e in data.overview["excluded_dates"]}
+    fair_dates = frozenset(data.overview["processed_dates"]) | excluded
+    id_pattern = re.compile("|".join(re.escape(i) for i in sorted(set(identifiers), key=len, reverse=True))) \
+        if identifiers else None
 
     for sentence in SENTENCE_SPLIT.split(text):
         if not sentence.strip():
             continue
-        dates = _dates_in(sentence, year)
-        masked = list(sentence)
-        for _, _, (a, b) in dates:
-            masked[a:b] = " " * (b - a)
-        masked = "".join(masked)
+        if id_pattern:                                    # known insight IDs are names, not evidence
+            sentence = _blank(sentence, (m.span() for m in id_pattern.finditer(sentence)))
+        dates = _dates_in(sentence, year, fair_dates)
+        masked = _blank(sentence, (span for _, _, span in dates))
         masked = ID_TOKEN.sub(lambda m: " " * len(m.group(0)), masked)
         subjects = sorted({(m.start(), sid) for pat, sid in subject_pats for m in pat.finditer(sentence)})
         metrics = [(m.start(), METRIC_OF[m.group(1).lower()]) for m in METRIC_RE.finditer(sentence)]
-        date_mentions = [(pos, iso) for pos, iso, _ in dates]
+        date_mentions = _link_ranges(sentence, dates)
 
         verified_positions: set[int] = set()
         result_measures: dict[int, tuple] = {}            # a written result must be the right kind of figure
@@ -311,17 +413,30 @@ def check_text(text: str, facts: list[Fact], extra_numbers: set[float] = frozens
                 continue                                  # "Day 2", "4 processed days"
             if value == float(year) or (not is_pct and value == 100 and re.search(r"[×x*]\s*$", before)):
                 continue
-            if value in rule_values and RULE_WORDS.search(sentence):
+            # "416 artwork views, 57 favourites and 3 inquiries": a metric named right after the number is its own.
+            bound_metric = next((met for mpos, met in metrics if mpos >= m.end()
+                                 and BOUND_METRIC_GAP.match(sentence[m.end():mpos])), None)
+            metric = bound_metric or _nearest(metrics, pos)
+            # Screening-rule figures. A figure written as a threshold ("the +3 minimum") must be an approved rule
+            # value. Otherwise a rule value is exempt only in a sentence about rules, of the right kind (a rule
+            # percentage, the metric's own minimum, the number of later days) and before any artwork or artist
+            # is named, so "By the rules, A2's favourites rose by 3" is still checked as A2's data.
+            if THRESHOLD_AFTER.match(sentence[m.end():]) or THRESHOLD_BEFORE.search(sentence[:m.start()]):
+                if not _is_rule_value(value, is_pct, metric):
+                    problems.append(f"'{raw}' is not an approved screening-rule value")
+                continue
+            if RULE_WORDS.search(sentence) and _is_rule_value(value, is_pct, metric) \
+                    and not any(spos < m.start() for spos, _ in subjects):
                 continue
             if value in extra_numbers:
                 continue
 
             subject = _nearest(subjects, pos)
-            metric = _nearest(metrics, pos)
             # "13 on 2026-10-17": a date introduced by on/for right after the number belongs to it.
             bound = next((iso for dpos, iso in date_mentions if dpos >= m.end()
                           and BOUND_DATE_GAP.match(sentence[m.end():dpos])), None)
             date = bound or _nearest(date_mentions, pos)
+            off_days = sorted(set(date if isinstance(date, tuple) else (date,)) & excluded) if date else []
             measures = ("percent_change",) if is_pct else result_measures.get(pos, ("value", "change", "total"))
             candidates = [f for f in facts if f.measure in measures and abs(abs(f.value) - value) <= (
                 TOLERANCE if is_pct else 0)]
@@ -349,12 +464,13 @@ def check_text(text: str, facts: list[Fact], extra_numbers: set[float] = frozens
                                     f"{', '.join(sorted({f.subject for f in candidates}))}")
                     continue
                 candidates = narrowed
-            if date and date not in excluded:
-                narrowed = [f for f in candidates if f.measure == "total" or date in f.dates()]
+            if off_days:
+                problems.append(f"'{raw}' is described for the excluded date {off_days[0]}")
+            elif date:
+                narrowed = [f for f in candidates if _date_matches(f, date)]
                 if not narrowed:
-                    problems.append(f"'{raw}' is described for {date} but the verified figure is for "
-                                    f"{', '.join(sorted(d for f in candidates for d in f.dates()))}")
+                    described = " to ".join(date) if isinstance(date, tuple) else date
+                    problems.append(f"'{raw}' is described for {described} but the verified figure is for "
+                                    f"{', '.join(sorted({d for f in candidates for d in f.dates()}))}")
                     continue
-            elif date in excluded:
-                problems.append(f"'{raw}' is described for the excluded date {date}")
     return problems

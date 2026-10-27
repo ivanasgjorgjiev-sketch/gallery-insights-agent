@@ -15,9 +15,11 @@ __pycache__/
 .coverage
 htmlcov/
 evals/results/
+diagnostics/
 
 # --- OS / editor / local tool settings ---
 .claude/
+.agents/
 .DS_Store
 .idea/
 .vscode/

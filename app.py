@@ -15,7 +15,7 @@ import anthropic
 import pandas as pd
 import streamlit as st
 
-from gia import agent, config, evidence, explain, followup, review, snapshot
+from gia import agent, config, diagnostics, evidence, explain, followup, guided, presentation, review, snapshot
 from gia.data import DataValidationError, load_processed_data
 from gia.display_names import edition_label, gallery_name
 
@@ -54,53 +54,75 @@ STRENGTH_BADGES = {
 }
 
 
+SERIES_COLOR = "#2a78d6"   # single series: one hue; the key jump is emphasised by size and a label, not a new colour
+
+
 def render_key_metrics(pattern: dict) -> None:
-    """Deterministic metric tiles for the key comparison (values from the tools, not the model)."""
-    kc = pattern["key_comparison"]
-    if not kc:
+    """Four tiles in one row: the primary metric's key change, then each supporting measure with its verified
+    values, change and support classification (values from the tools, not the model). Measures that did not add
+    support are labelled as such, never as contradictions. Columns stack on narrow screens."""
+    tiles = presentation.metric_tiles(pattern)
+    if not tiles:
         return
-    rows = [{"metric": pattern["metric"], **kc}] + pattern["supporting_metrics"]
-    cols = st.columns(len(rows))
-    for col, r in zip(cols, rows):
-        counts = r.get("qualifies_as_support", True)  # the key metric itself always counts
-        if r["status"] == "unavailable":
-            delta, color = None, "off"
-        elif r["status"] == "zero_baseline":
-            delta, color = ("no change" if r["absolute_change"] == 0 else f"{r['absolute_change']:+d} (from 0)"), \
-                ("off" if r["absolute_change"] == 0 else "normal")
-        else:
-            delta, color = f"{r['percentage_change']:+.1f}%", "normal"
-        if r["absolute_change"] == 0:
-            delta = None  # no arrow for "no change"
-        if counts is False:
-            color = "off"  # grey: changed, but not enough to count as support
-        col.metric(explain.METRIC_NAMES[r["metric"]],
-                   f"{explain.fmt_value(r['old_value'])} → {explain.fmt_value(r['new_value'])}",
-                   delta=delta, delta_color=color,
-                   help=explain.MISSING_NOTE if r["status"] == "unavailable"
-                   else explain.ZERO_NOTE if r["status"] == "zero_baseline"
-                   else "Changed, but not enough to count as support." if counts is False else None)
-    st.caption(f"Comparison: {explain.fmt_date_long(kc['old_date'])} → {explain.fmt_date_long(kc['new_date'])}. "
-               "Grey changes did not count as supporting evidence.")
+    for col, t in zip(st.columns(len(tiles)), tiles):
+        with col:
+            st.metric(t["label"], t["value"], delta=t["delta"], delta_color=t["delta_color"], help=t["help"],
+                      delta_arrow="auto" if t["delta"][:1] in "+-" else "off")
+            st.caption(t["note"])
 
 
-def render_evidence(ev: dict) -> None:
+def render_trend_chart(pattern: dict) -> None:
+    """Daily values of the primary metric on the processed days only, with the key jump emphasised."""
+    import altair as alt
+
+    points = presentation.trend_points(pattern)
+    name = explain.METRIC_NAMES[pattern["metric"]]
+    data = pd.DataFrame(points)
+    base = alt.Chart(data).encode(
+        x=alt.X("day:N", sort=None, title=None, axis=alt.Axis(labelAngle=0, ticks=False, domain=False)),
+        y=alt.Y("value:Q", title=None, scale=alt.Scale(zero=True), axis=alt.Axis(tickCount=3, domain=False)))
+    tooltip = [alt.Tooltip("day:N", title="Day"), alt.Tooltip("value:Q", title=name)]
+    chart = (base.mark_line(strokeWidth=2, color=SERIES_COLOR)
+             + base.mark_point(filled=True, size=64, color=SERIES_COLOR, opacity=1).encode(tooltip=tooltip)
+             + base.transform_filter("datum.role == 'jump'").mark_point(
+                 filled=True, size=160, color=SERIES_COLOR, opacity=1).encode(tooltip=tooltip)
+             + base.transform_filter("datum.role != 'day' || datum.day == '" + points[-1]["day"] + "'")
+             .mark_text(dy=-12, fontSize=12).encode(text="value:Q"))
+    values = ", ".join(f"{p['day']}: {explain.fmt_value(p['value'])}" for p in points)
+    st.altair_chart(chart.properties(height=115), width="stretch",
+                    alt=f"{name} by processed day: {values}.")
+    st.caption(f"Daily {name.lower()} · larger dot = the key change")
+
+
+def render_evidence(entry: dict) -> None:
+    """Two levels: a short, manager-friendly summary first, then calculations, checks and sources on demand."""
+    ev = evidence.build_evidence(entry)
+    summary = presentation.evidence_summary(entry, ev)
     with st.container(border=True):
         st.markdown("##### Evidence")
-        st.dataframe([{"": k, "Value": v} for k, v in ev["context"].items()], hide_index=True)
-        st.markdown("**Daily source records**")
-        st.dataframe(ev["daily"], hide_index=True)
-        if ev["comparison"]:
-            old, new = ev["comparison_dates"]
-            st.markdown(f"**Key comparison: {explain.fmt_date_long(old)} → {explain.fmt_date_long(new)}**")
-            st.dataframe(ev["comparison"], hide_index=True)
-        with st.expander("Technical details: screening checks, validation and notes"):
+        st.markdown("\n".join(f"- {line}" for line in summary["lines"]))
+        for note in summary["notes"]:
+            st.caption(f"ℹ️ {note}")
+        st.markdown(f"**Agent's description** (validated against the source)  \n{summary['agent_description']}")
+        if summary["next_step"]:
+            st.markdown(f"**For your consideration** (the agent takes no action)  \n{summary['next_step']}")
+            if summary["next_step_replaced"]:
+                st.caption("ℹ️ The agent's own suggestion did not meet the neutral-action policy, so it was "
+                           "replaced with this standard wording.")
+        with st.expander("Calculations, screening checks and source records"):
+            st.dataframe([{"": k, "Value": v} for k, v in ev["context"].items()]
+                         + [{"": "Insight ID", "Value": summary["insight_id"]}], hide_index=True)
+            st.markdown("**Daily source records**")
+            st.dataframe(ev["daily"], hide_index=True)
+            if ev["comparison"]:
+                old, new = ev["comparison_dates"]
+                st.markdown(f"**Key comparison: {explain.fmt_date_long(old)} → {explain.fmt_date_long(new)}**")
+                st.dataframe(ev["comparison"], hide_index=True)
             st.markdown(f"**Pattern found: {ev['pattern_label']}.** {ev['why_highlighted']}")
             st.markdown("**Screening checks** (transparent rules, applied the same way to every artwork)")
             st.dataframe(ev["checks"], hide_index=True)
             st.markdown("**Validation of this insight's numbers**")
             st.dataframe(ev["verified_claims"], hide_index=True)
-            st.markdown(f"**Agent's description** (validated against the source)  \n{ev['agent_description']}")
             st.caption(ev["artist_context"])
             st.markdown("**How to read this evidence**")
             for note in ev["notes"]:
@@ -123,6 +145,7 @@ def show_analysis(result: agent.AnalysisResult) -> None:
     st.session_state["analysis"] = result
     st.session_state["review"] = review.start_review(result)
     st.session_state["evidence_open"] = set()
+    st.session_state["explore_open"] = set()
     st.session_state["followups"] = []          # follow-ups belong to the analysis on screen
 
 
@@ -142,43 +165,64 @@ def render_feedback(entry: dict, state: review.ReviewState) -> None:
                    f"(this session only). {review.NOT_AUTHORISATION_NOTE}")
         if not current.evidence_viewed:
             st.caption("To complete the review of this insight, also open its evidence.")
-    elif not current.evidence_viewed:
-        st.caption("Tip: view the evidence before rating. The review is complete once you have viewed the "
-                   "evidence and given feedback on the same insight.")
+
+
+def render_guided(entry: dict) -> None:
+    """Four deterministic questions about this insight, shown only after "Explore insight" and collapsed at
+    first. Opening them makes no AI request and does not change the review."""
+    with st.container(border=True):
+        st.markdown("##### Explore this insight")
+        for a in guided.answers(entry):
+            with st.expander(a.question, expanded=False):
+                if a.shown:
+                    st.markdown(a.text)
+                else:
+                    st.warning(guided.UNAVAILABLE)
+        st.caption("These explanations are generated from this insight's verified data. No AI request is made.")
+
+
+def toggle(name: str, insight_id: str) -> None:
+    st.session_state.setdefault(name, set()).symmetric_difference_update({insight_id})
 
 
 def render_insight_card(rank: int, entry: dict, state: review.ReviewState) -> None:
     ins, pattern, insight_id = entry["insight"], entry["pattern"], entry["insight_id"]
-    opened = st.session_state.setdefault("evidence_open", set())
+    evidence_open = insight_id in st.session_state.setdefault("evidence_open", set())
+    explore_open = insight_id in st.session_state.setdefault("explore_open", set())
     progress = state.reviews[insight_id]
     with st.container(border=True):
         st.markdown(f"#### {rank}. {ins['title']}")
         status = []
-        if progress.evidence_viewed:
-            status.append(":violet-badge[Evidence viewed]")
-        if progress.feedback:
-            status.append(f":violet-badge[Rated: {review.FEEDBACK_OPTIONS[progress.feedback]}]")
+        if progress.evidence_viewed and progress.feedback:
+            status.append(":green-badge[✓ Reviewed]")
+        else:
+            if progress.evidence_viewed:
+                status.append(":violet-badge[Evidence viewed]")
+            if progress.feedback:
+                status.append(f":violet-badge[Rated: {review.FEEDBACK_OPTIONS[progress.feedback]}]")
         st.markdown(" ".join([STRENGTH_BADGES[ins["confidence"]],
                               f":gray-badge[{explain.CATEGORY_LABELS[pattern['category']]}]"] + status))
-        st.caption(f"{pattern['artwork_title']} ({pattern['artwork_id']}) · {pattern['artist_name']} · "
-                   f"Insight ID `{insight_id}`")
+        st.caption(f"{pattern['artwork_title']} ({pattern['artwork_id']}) · {pattern['artist_name']}")
         render_key_metrics(pattern)
-        st.markdown(f"**Why this matters**  \n{explain.short_rationale(pattern)} {ins['why_it_may_matter']}")
-        st.markdown(f"**Evidence strength: {ins['confidence']}.** {explain.STRENGTH_TEXT[ins['confidence']]}")
-        st.markdown("**Limitations**  \n" + "\n".join(f"- {lim}" for lim in ins["limitations"]))
-        if ins.get("suggested_next_step"):
-            st.markdown(f"**For your consideration** (the agent takes no action)  \n{ins['suggested_next_step']}")
-            if entry.get("next_step_substitution"):
-                st.caption("ℹ️ The agent's own suggestion did not meet the neutral-action policy, so it was "
-                           "replaced with this standard wording.")
-        is_open = insight_id in opened
-        if st.button("Hide evidence" if is_open else "View evidence", key=f"evidence-{insight_id}"):
-            opened.symmetric_difference_update({insight_id})
-            if not is_open:
+        render_trend_chart(pattern)
+        st.markdown(f"**Why it may matter:** {ins['why_it_may_matter']}")
+        with st.expander(f"Limitations ({len(ins['limitations'])})"):
+            st.markdown("\n".join(f"- {lim}" for lim in ins["limitations"]))
+        explore_col, evidence_col, _ = st.columns([1, 1, 2])
+        if explore_col.button("Hide exploration" if explore_open else "Explore insight", key=f"explore-{insight_id}",
+                              icon=":material/travel_explore:", width="stretch"):
+            toggle("explore_open", insight_id)
+            st.rerun()
+        if evidence_col.button("Hide evidence" if evidence_open else "View evidence", key=f"evidence-{insight_id}",
+                               icon=":material/fact_check:", width="stretch"):
+            toggle("evidence_open", insight_id)
+            if not evidence_open:
                 state.record_evidence_view(insight_id)
             st.rerun()
-        if is_open:
-            render_evidence(evidence.build_evidence(entry))
+        if explore_open:
+            render_guided(entry)
+        if evidence_open:
+            render_evidence(entry)
         render_feedback(entry, state)
 
 
@@ -262,6 +306,9 @@ def render_followup_area(result: agent.AnalysisResult, mode: str) -> None:
                                       on_step=lambda s: status.markdown(step_line(s)))
             status.update(label="Answered" if f.shown else "No verified answer",
                           state="complete" if f.shown else "error", expanded=False)
+        # Local, git-ignored record of a withheld answer for offline investigation; never shown in the app.
+        diagnostics.record_withheld(f, mode, followup.build_context(result.published, about, history),
+                                    api_key=key, effort=config.effort(), directory=config.diagnostics_dir())
         history.append(f)
         st.rerun()
 
@@ -273,16 +320,15 @@ st.info(
     "artworks and engagement figures are fictional."
 )
 
-st.title("Gallery Insights Agent")
-st.subheader(gallery_name(GALLERY_ID))
-
-edition_id = st.selectbox("Fair edition", EDITION_IDS, format_func=edition_label)
-
+title_col, edition_col = st.columns([3, 2], vertical_alignment="bottom")
+with title_col:
+    st.markdown(f"## Gallery Insights Agent\n**{gallery_name(GALLERY_ID)}**")
+with edition_col:
+    edition_id = st.selectbox("Fair edition", EDITION_IDS, format_func=edition_label)
 st.caption("🔒 Nothing is sent or changed by this agent. It does not contact anyone or modify business data.")
 
 # --- Data status --------------------------------------------------------------------
 
-st.markdown("#### Data status")
 try:
     data = load_processed_data(gallery_id=GALLERY_ID, edition_id=edition_id)
 except DataValidationError as err:
@@ -291,16 +337,23 @@ except DataValidationError as err:
         st.markdown(f"- {issue}")
     st.stop()
 
-included = ", ".join(format_date(d) for d in data.processed_dates)
-st.success(f"Data checks passed. **{len(data.processed_dates)} processed fair days** included: {included}.")
+missing = data.artwork_daily[data.artwork_daily["unique_artwork_viewers"].isna()]
+status = [f"✅ Data checks passed · **{len(data.processed_dates)} processed fair days** "
+          f"({explain.fmt_date(data.processed_dates[0])}–{explain.fmt_date(data.processed_dates[-1])})"]
 if data.excluded_dates:
-    excluded = ", ".join(format_date(d) for d in data.excluded_dates)
-    st.warning(f"Excluded from all analysis (not yet processed): {excluded}.")
-for _, row in data.artwork_daily[data.artwork_daily["unique_artwork_viewers"].isna()].iterrows():
-    st.caption(f"ℹ️ {row['artwork_title']} ({row['artwork_id']}) on {explain.fmt_date_long(row['fair_date'])}: "
-               "daily unique viewers not recorded. Treated as unknown, never as zero.")
+    status.append(f"{', '.join(explain.fmt_date(d) for d in data.excluded_dates)} excluded (not processed yet)")
+if len(missing):
+    status.append(f"{len(missing)} value{'s' if len(missing) > 1 else ''} not recorded")
+st.markdown(" · ".join(status))
 
-with st.expander("View eligible source records"):
+with st.expander("Data details and eligible source records"):
+    st.markdown(f"**Processed fair days used:** {', '.join(format_date(d) for d in data.processed_dates)}.")
+    if data.excluded_dates:
+        excluded = ", ".join(format_date(d) for d in data.excluded_dates)
+        st.markdown(f"**Excluded from all analysis (not yet processed):** {excluded}.")
+    for _, row in missing.iterrows():
+        st.caption(f"ℹ️ {row['artwork_title']} ({row['artwork_id']}) on {explain.fmt_date_long(row['fair_date'])}: "
+                   "daily unique viewers not recorded. Treated as unknown, never as zero.")
     st.caption(f"Source: `{data.source_file}` · {data.eligible_rows} eligible of {data.total_rows} rows")
     st.markdown("**Gallery-profile views (view events)**")
     st.dataframe(data.gallery_daily, hide_index=True)
@@ -312,9 +365,6 @@ with st.expander("View eligible source records"):
     st.dataframe(shown, hide_index=True)
 
 # --- Analysis -------------------------------------------------------------------------
-
-st.divider()
-st.markdown("#### Daily engagement analysis")
 
 mode = config.mode()
 
@@ -388,58 +438,64 @@ if result:
         st.warning("The tool-call limit was reached; findings are based only on evidence gathered so far.")
 
     if not result.error:
-        st.markdown(f"**Analysis overview.** {explain.overview(result.published, data.processed_dates, data.excluded_dates)}")
-        st.caption("Insights are ordered by evidence strength: higher-confidence first, qualified signals last. "
-                   + explain.STRENGTH_NOTE)
+        st.markdown(f"**Analysis overview.** {explain.overview(result.published, data.processed_dates, data.excluded_dates)}",
+                    help="Insights are ordered by evidence strength: higher-confidence first, qualified signals last. "
+                         + explain.STRENGTH_NOTE)
         if not result.published:
             st.info("No finding met the evidence bar. Nothing is presented rather than inventing an insight.")
         state = current_review()
         if result.published:
             p = state.progress()
+            useful = (f"Rated useful so far: {p['useful']} of {p['insights']} (this session only).")
             if p["complete"]:
                 titles = ", ".join(e["pattern"]["artwork_title"] for e in result.published
                                    if e["insight_id"] in p["completed_ids"])
                 st.success(f"✅ **Daily analysis review complete.** You viewed the evidence and recorded your "
                            f"feedback for: {titles}. Nothing has been sent or changed; any follow-up action is "
-                           "your own decision, outside this prototype.")
+                           f"your own decision, outside this prototype. {useful}")
             else:
+                # The evidence-before-feedback guidance is given once here, not under every card.
                 st.info(f"**Review progress:** evidence viewed for {p['evidence_viewed']} of {p['insights']} "
-                        f"insights · feedback recorded for {p['rated']} of {p['insights']}. The review is complete "
-                        "once you have viewed the evidence and given feedback on the same insight.")
-            st.caption(f"Useful-insight rate this session: {p['useful']} of {p['insights']} validated insights "
-                       f"rated useful. {review.SESSION_ONLY_NOTE}")
+                        f"insights · feedback recorded for {p['rated']} of {p['insights']}. To complete the review, "
+                        f"open **View evidence** and then rate the same insight (any one is enough). {useful}")
         for rank, entry in enumerate(result.published, start=1):
             render_insight_card(rank, entry, state)
 
-        if result.not_surfaced:
-            with st.expander(f"Not surfaced as insights ({len(result.not_surfaced)}): why"):
-                for n in result.not_surfaced:
-                    st.markdown(f"**{n['artwork_title']} ({n['artwork_id']})** · {n['label']}  \n"
-                                f"{n['explanation']}  \n*{n['why_not_shown']}*")
-
-    if not result.error:
+    if not result.error and config.followups_enabled():   # not part of the M8 MVP; kept behind a setting
         render_followup_area(result, mode)
 
+    # Agent-process details, grouped and collapsed: the evidence of agentic work without crowding the cards.
     withheld = len(result.withheld) if not result.replayed else (result.withheld_count or 0)
-    if withheld:
-        with st.expander(f"Withheld by validation ({withheld}): never shown as findings"):
-            if result.replayed:
-                st.caption("Drafts that failed validation are not kept in recordings.")
+    with st.expander(f"How the agent worked · {presentation.run_summary(result)}"):
+        names = ["Investigation trace", f"Not surfaced ({len(result.not_surfaced)})",
+                 f"Withheld by validation ({withheld})", "Usage"]
+        trace_tab, hidden_tab, withheld_tab, usage_tab = st.tabs(names)
+        with trace_tab:
+            st.caption(f"{result.tool_calls} tool calls, {result.model_turns} model turns. Claude chose the tools; "
+                       "Python ran them.")
+            for s in result.trace:
+                st.markdown(step_line(s))
+                if s.result is not None:
+                    st.json(s.result, expanded=False)
+        with hidden_tab:
+            if not result.not_surfaced:
+                st.caption("Every artwork with a reportable pattern was surfaced.")
+            for n in result.not_surfaced:
+                st.markdown(f"**{n['artwork_title']} ({n['artwork_id']})** · {n['label']}  \n"
+                            f"{n['explanation']}  \n*{n['why_not_shown']}*")
+        with withheld_tab:
+            st.caption("Drafts that fail validation are never shown as findings."
+                       + (" They are not kept in recordings." if result.replayed else ""))
             for w in result.withheld:
                 st.markdown(f"**{w['insight_id']}**")
                 for e in w["errors"]:
                     st.markdown(f"- {e}")
-
-    with st.expander(f"Investigation trace ({result.tool_calls} tool calls, {result.model_turns} model turns)"):
-        for s in result.trace:
-            st.markdown(step_line(s))
-            if s.result is not None:
-                st.json(s.result, expanded=False)
-    cost = result.estimated_cost_usd
-    st.caption(("Original live run usage: " if result.replayed else "Usage: ")
-               + f"{result.usage['input_tokens']:,} input + {result.usage['cache_read_input_tokens']:,} "
-               f"cached + {result.usage['output_tokens']:,} output tokens"
-               + (f" · estimated cost ${cost:.3f}" if cost is not None else ""))
+        with usage_tab:
+            cost = result.estimated_cost_usd
+            st.caption(("Original live run usage: " if result.replayed else "Usage: ")
+                       + f"{result.usage['input_tokens']:,} input + {result.usage['cache_read_input_tokens']:,} "
+                       f"cached + {result.usage['output_tokens']:,} output tokens"
+                       + (f" · estimated cost ${cost:.3f}" if cost is not None else ""))
 
     if mode == "live" and not result.replayed and result.status == "completed":
         if st.button("Save this run as the demo recording"):

@@ -1,0 +1,16 @@
+record_type,gallery_id,edition_id,fair_date,day_processed,artist_id,artist_name,artwork_id,artwork_title,gallery_views,artwork_views,unique_artwork_viewers,favourites,inquiries
+gallery,G001,E001,2026-10-14,true,,,,,100,,,,
+artwork,G001,E001,2026-10-14,true,AR06,Artist F,F001,Artwork F1,,20,15,2,0
+artwork,G001,E001,2026-10-14,true,AR06,Artist F,F002,Artwork F2,,30,20,3,0
+gallery,G001,E001,2026-10-15,true,,,,,110,,,,
+artwork,G001,E001,2026-10-15,true,AR06,Artist F,F001,Artwork F1,,21,15,2,0
+artwork,G001,E001,2026-10-15,true,AR06,Artist F,F002,Artwork F2,,45,,4,0
+gallery,G001,E001,2026-10-16,true,,,,,105,,,,
+artwork,G001,E001,2026-10-16,true,AR06,Artist F,F001,Artwork F1,,20,15,2,0
+artwork,G001,E001,2026-10-16,true,AR06,Artist F,F002,Artwork F2,,44,25,4,0
+gallery,G001,E001,2026-10-17,true,,,,,120,,,,
+artwork,G001,E001,2026-10-17,true,AR06,Artist F,F001,Artwork F1,,40,25,3,0
+artwork,G001,E001,2026-10-17,true,AR06,Artist F,F002,Artwork F2,,46,26,4,0
+gallery,G001,E001,2026-10-18,false,,,,,130,,,,
+artwork,G001,E001,2026-10-18,false,AR06,Artist F,F001,Artwork F1,,45,30,3,0
+artwork,G001,E001,2026-10-18,false,AR06,Artist F,F002,Artwork F2,,50,30,5,1

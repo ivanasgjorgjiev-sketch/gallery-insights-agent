@@ -39,6 +39,23 @@ response, analysis stops once estimated spend passes $0.75, max 5 analyses per b
 All are configurable (`GIA_MAX_TOOL_CALLS`, `GIA_MAX_OUTPUT_TOKENS`, `GIA_MAX_COST_PER_ANALYSIS_USD`,
 `GIA_MAX_ANALYSES_PER_SESSION`). Also set a spend limit in the Anthropic Console.
 
+## Guided insight exploration (Milestone 8)
+
+Each validated insight card offers four questions: *What makes this insight worth my attention?*,
+*How did engagement evolve over the fair?*, *What other signals support—or challenge—this pattern?* and
+*What should I look into next?* The answers are deterministic: built from the insight's verified data with the
+analytical tools, identical in both modes, and checked before display. Opening them makes no API call. See
+`M8_DECISIONS.md` and `evals/M8_EVALUATION.md`.
+
+**Milestone 9 interface:** each card shows the key change, labelled supporting measures, a small chart of
+daily artwork views (processed days only) and one validated sentence. *Explore insight* opens the four
+questions (collapsed); *View evidence* shows a short summary first, with calculations, checks and source
+records on demand. See `M9_DECISIONS.md`.
+
+Open-ended follow-up questions are not part of the MVP. Their implementation is kept and can be shown again
+locally with `GIA_ENABLE_FOLLOWUPS=1`; never set it on the public deployment. When they are on, any answer
+withheld in LIVE mode is recorded for offline investigation in the git-ignored `diagnostics/` folder.
+
 ## Secrets
 
 Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and add your Anthropic API key.

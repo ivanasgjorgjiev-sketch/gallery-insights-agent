@@ -8,6 +8,7 @@ never logged, displayed or written into traces.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 MODES = ("demo", "live")
 DEFAULT_MODE = "demo"               # safe default: no API calls unless GIA_MODE=live is set server-side
@@ -22,6 +23,7 @@ DEFAULT_FOLLOWUP_MAX_OUTPUT_TOKENS = 4000
 DEFAULT_FOLLOWUP_MAX_COST_USD = 0.25      # per question
 DEFAULT_MAX_FOLLOWUPS_PER_SESSION = 10
 MAX_QUESTION_CHARS = 500
+DEFAULT_DIAGNOSTICS_DIR = Path(__file__).resolve().parent.parent / "diagnostics"   # git-ignored
 
 # Published per-million-token prices (USD) used only for the cost estimate shown in the app.
 PRICES_PER_MTOK = {
@@ -82,6 +84,20 @@ def max_followups_per_session() -> int:
 def demo_snapshot_path() -> str | None:
     """Optional server-side override for the DEMO recording file (used for local previews)."""
     return _setting("GIA_DEMO_SNAPSHOT")
+
+
+def followups_enabled() -> bool:
+    """Open-ended follow-up questions are not part of the M8 MVP (guided questions replace them). The
+    implementation is kept; GIA_ENABLE_FOLLOWUPS=1 shows it again. Never set on the public deployment."""
+    return (_setting("GIA_ENABLE_FOLLOWUPS") or "").strip() == "1"
+
+
+def diagnostics_dir() -> Path | None:
+    """Local, git-ignored folder for withheld-answer diagnostics (LIVE only). GIA_DIAGNOSTICS=0 turns them off;
+    GIA_DIAGNOSTICS_DIR moves them (tests use a temporary folder)."""
+    if (_setting("GIA_DIAGNOSTICS") or "1").strip() == "0":
+        return None
+    return Path(_setting("GIA_DIAGNOSTICS_DIR") or DEFAULT_DIAGNOSTICS_DIR)
 
 
 def api_key() -> str | None:
