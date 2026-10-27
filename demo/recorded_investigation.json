@@ -1,0 +1,1006 @@
+{
+  "snapshot_version": 1,
+  "recorded_at": "2026-10-26T21:17:37+00:00",
+  "model": "claude-sonnet-5-5",
+  "data_file": "daily_data.csv",
+  "data_sha256": "dbf61490a4b7876ada6d131c43db10aa309a54624dbcab2fbf65759a8f9d9a2f",
+  "tool_calls": 5,
+  "model_turns": 4,
+  "usage": {
+    "input_tokens": 10,
+    "output_tokens": 3273,
+    "cache_read_input_tokens": 23696,
+    "cache_creation_input_tokens": 15630
+  },
+  "withheld_count": 0,
+  "published": [
+    {
+      "insight_id": "INS-A001-SUSTAINED_GROWTH-20261014_20261015",
+      "insight": {
+        "signal_type": "sustained_growth",
+        "artwork_id": "A001",
+        "title": "Artwork A1: views increased and stayed higher",
+        "observed_signal": "Artwork views rose from 40 to 80 between 2026-10-14 and 2026-10-15 and stayed higher on later processed days, with unique viewers and favourites also rising.",
+        "why_it_may_matter": "Corroborated by several metrics, this may indicate a genuine rise in interest in this artwork.",
+        "suggested_next_step": "Review the engagement evidence and decide whether further investigation is worthwhile.",
+        "confidence": "higher-confidence",
+        "limitations": [
+          "Only four processed days; screening heuristics, not statistical tests.",
+          "Event counts are not distinct people; inquiries stayed at zero.",
+          "Data does not show why engagement changed."
+        ],
+        "metric_changes": [
+          {
+            "artwork_id": "A001",
+            "metric": "artwork_views",
+            "old_date": "2026-10-14",
+            "new_date": "2026-10-15",
+            "old_value": 40,
+            "new_value": 80,
+            "absolute_change": 40,
+            "percentage_change": 100.0
+          },
+          {
+            "artwork_id": "A001",
+            "metric": "unique_artwork_viewers",
+            "old_date": "2026-10-14",
+            "new_date": "2026-10-15",
+            "old_value": 30,
+            "new_value": 45,
+            "absolute_change": 15,
+            "percentage_change": 50.0
+          },
+          {
+            "artwork_id": "A001",
+            "metric": "favourites",
+            "old_date": "2026-10-14",
+            "new_date": "2026-10-15",
+            "old_value": 5,
+            "new_value": 12,
+            "absolute_change": 7,
+            "percentage_change": 140.0
+          }
+        ],
+        "metric_totals": []
+      },
+      "next_step_substitution": null
+    },
+    {
+      "insight_id": "INS-A002-SUSTAINED_GROWTH-20261014_20261015",
+      "insight": {
+        "signal_type": "sustained_growth",
+        "artwork_id": "A002",
+        "title": "Artwork A2: views increased and stayed higher",
+        "observed_signal": "Artwork views rose from 25 to 35 between 2026-10-14 and 2026-10-15 and stayed higher on later processed days, with unique viewers also rising.",
+        "why_it_may_matter": "Only one other metric corroborates it, so this is a moderate signal worth a light look.",
+        "suggested_next_step": "Review the engagement evidence and decide whether further investigation is worthwhile.",
+        "confidence": "moderate-confidence",
+        "limitations": [
+          "Only four processed days; screening heuristics, not statistical tests.",
+          "Favourites rise was below the support threshold and inquiries stayed at zero.",
+          "Event counts are not distinct people."
+        ],
+        "metric_changes": [
+          {
+            "artwork_id": "A002",
+            "metric": "artwork_views",
+            "old_date": "2026-10-14",
+            "new_date": "2026-10-15",
+            "old_value": 25,
+            "new_value": 35,
+            "absolute_change": 10,
+            "percentage_change": 40.0
+          },
+          {
+            "artwork_id": "A002",
+            "metric": "unique_artwork_viewers",
+            "old_date": "2026-10-14",
+            "new_date": "2026-10-15",
+            "old_value": 20,
+            "new_value": 26,
+            "absolute_change": 6,
+            "percentage_change": 30.0
+          }
+        ],
+        "metric_totals": []
+      },
+      "next_step_substitution": null
+    },
+    {
+      "insight_id": "INS-B001-TEMPORARY_SPIKE-20261014_20261015",
+      "insight": {
+        "signal_type": "temporary_spike",
+        "artwork_id": "B001",
+        "title": "Artwork B1: one-day views spike (awareness only)",
+        "observed_signal": "Artwork views rose from 30 to 45 between 2026-10-14 and 2026-10-15, then returned close to the earlier level on later processed days.",
+        "why_it_may_matter": "A one-day rise that was not maintained should not be read as growth.",
+        "suggested_next_step": "",
+        "confidence": "qualified",
+        "limitations": [
+          "Not sustained; not corroborated by unique viewers, favourites or inquiries.",
+          "Only four processed days; event counts are not people."
+        ],
+        "metric_changes": [
+          {
+            "artwork_id": "B001",
+            "metric": "artwork_views",
+            "old_date": "2026-10-14",
+            "new_date": "2026-10-15",
+            "old_value": 30,
+            "new_value": 45,
+            "absolute_change": 15,
+            "percentage_change": 50.0
+          }
+        ],
+        "metric_totals": []
+      },
+      "next_step_substitution": null
+    }
+  ],
+  "not_surfaced": [
+    {
+      "artwork_id": "B002",
+      "artwork_title": "Artwork B2",
+      "category": "stable",
+      "label": "Stable",
+      "explanation": "Artwork views stayed steady (20, 21, 20, 20): every day within 10% of the average.",
+      "why_not_shown": "Not an insight: engagement stayed steady."
+    },
+    {
+      "artwork_id": "C001",
+      "artwork_title": "Artwork C1",
+      "category": "zero_baseline_change",
+      "label": "Increase from zero",
+      "explanation": "Artwork views went from 0 on Oct 14 to 10 on Oct 15 (+10; no percentage, because it started at 0). Later days: 9, 11. Daily unique viewers (0 \u2192 8) also rose enough to count as support. Favourites (0 \u2192 1) rose, but too little to count. Inquiries (0 \u2192 0) did not rise.",
+      "why_not_shown": "Not prioritised: a change from zero on small numbers is context, not a headline."
+    },
+    {
+      "artwork_id": "C002",
+      "artwork_title": "Artwork C2",
+      "category": "weak_signal",
+      "label": "Weak signal",
+      "explanation": "Artwork views went from 15 on Oct 14 to 20 on Oct 15 (+5, +33.3%). That is only +5, below the 10 needed to count as meaningful. Favourites (1 \u2192 2) rose, but too little to count. Inquiries (0 \u2192 0) did not rise. Daily unique viewers on Oct 15 is not recorded, so it cannot count either way.",
+      "why_not_shown": "Not prioritised: the change is too small or not supported by other measures."
+    }
+  ],
+  "trace": [
+    {
+      "step": 1,
+      "kind": "model_turn",
+      "title": "Claude turn 1: tool_use",
+      "tool": null,
+      "arguments": null,
+      "detail": "",
+      "result": null,
+      "duration_ms": 1737
+    },
+    {
+      "step": 2,
+      "kind": "tool_call",
+      "title": "get_processed_data",
+      "tool": "get_processed_data",
+      "arguments": {},
+      "detail": "Validation passed; processed days 2026-10-14, 2026-10-15, 2026-10-16, 2026-10-17; excluded ['2026-10-18']; 6 artworks",
+      "result": {
+        "gallery_id": "G001",
+        "edition_id": "E001",
+        "source_file": "daily_data.csv",
+        "validation": "passed",
+        "processed_dates": [
+          "2026-10-14",
+          "2026-10-15",
+          "2026-10-16",
+          "2026-10-17"
+        ],
+        "excluded_dates": [
+          {
+            "date": "2026-10-18",
+            "reason": "day_processed=false; excluded from all analysis"
+          }
+        ],
+        "eligible_rows": 28,
+        "total_rows": 35,
+        "artworks": [
+          {
+            "artwork_id": "A001",
+            "artwork_title": "Artwork A1",
+            "artist_id": "AR01",
+            "artist_name": "Artist A"
+          },
+          {
+            "artwork_id": "A002",
+            "artwork_title": "Artwork A2",
+            "artist_id": "AR01",
+            "artist_name": "Artist A"
+          },
+          {
+            "artwork_id": "B001",
+            "artwork_title": "Artwork B1",
+            "artist_id": "AR02",
+            "artist_name": "Artist B"
+          },
+          {
+            "artwork_id": "B002",
+            "artwork_title": "Artwork B2",
+            "artist_id": "AR02",
+            "artist_name": "Artist B"
+          },
+          {
+            "artwork_id": "C001",
+            "artwork_title": "Artwork C1",
+            "artist_id": "AR03",
+            "artist_name": "Artist C"
+          },
+          {
+            "artwork_id": "C002",
+            "artwork_title": "Artwork C2",
+            "artist_id": "AR03",
+            "artist_name": "Artist C"
+          }
+        ],
+        "gallery_profile_views": {
+          "daily": [
+            {
+              "date": "2026-10-14",
+              "gallery_views": 120,
+              "source_line": 2
+            },
+            {
+              "date": "2026-10-15",
+              "gallery_views": 165,
+              "source_line": 9
+            },
+            {
+              "date": "2026-10-16",
+              "gallery_views": 158,
+              "source_line": 16
+            },
+            {
+              "date": "2026-10-17",
+              "gallery_views": 172,
+              "source_line": 23
+            }
+          ],
+          "total": 615,
+          "calculation": "120 + 165 + 158 + 172 = 615",
+          "note": "Gallery-profile view events; a different event type from artwork views, never combined with them."
+        },
+        "data_notes": [
+          "C002 on 2026-10-15: unique_artwork_viewers is unknown (blank in source)"
+        ],
+        "available_metrics": [
+          "artwork_views",
+          "unique_artwork_viewers",
+          "favourites",
+          "inquiries"
+        ]
+      },
+      "duration_ms": 16
+    },
+    {
+      "step": 3,
+      "kind": "model_turn",
+      "title": "Claude turn 2: tool_use",
+      "tool": null,
+      "arguments": null,
+      "detail": "",
+      "result": null,
+      "duration_ms": 1309
+    },
+    {
+      "step": 4,
+      "kind": "tool_call",
+      "title": "detect_engagement_patterns",
+      "tool": "detect_engagement_patterns",
+      "arguments": {
+        "metric": "artwork_views",
+        "artwork_ids": null
+      },
+      "detail": "A001: sustained_growth (higher-confidence); A002: sustained_growth (moderate-confidence); B001: temporary_spike; B002: stable; C001: zero_baseline_change; C002: weak_signal",
+      "result": {
+        "gallery_id": "G001",
+        "edition_id": "E001",
+        "processed_dates": [
+          "2026-10-14",
+          "2026-10-15",
+          "2026-10-16",
+          "2026-10-17"
+        ],
+        "metric": "artwork_views",
+        "rules": {
+          "min_increase_pct": 30.0,
+          "min_absolute_change": {
+            "artwork_views": 10,
+            "unique_artwork_viewers": 5,
+            "favourites": 3,
+            "inquiries": 2
+          },
+          "min_later_days": 2,
+          "min_gain_retained": 0.5,
+          "support_min_pct": 30.0,
+          "stable_tolerance": 0.1
+        },
+        "patterns": [
+          {
+            "artwork_id": "A001",
+            "artwork_title": "Artwork A1",
+            "artist_id": "AR01",
+            "artist_name": "Artist A",
+            "metric": "artwork_views",
+            "daily": [
+              {
+                "date": "2026-10-14",
+                "value": 40,
+                "source_line": 3
+              },
+              {
+                "date": "2026-10-15",
+                "value": 80,
+                "source_line": 10
+              },
+              {
+                "date": "2026-10-16",
+                "value": 76,
+                "source_line": 17
+              },
+              {
+                "date": "2026-10-17",
+                "value": 90,
+                "source_line": 24
+              }
+            ],
+            "category": "sustained_growth",
+            "evidence_strength": "higher-confidence",
+            "explanation": "Increase 40\u219280 (+100.0%) maintained on later days [76, 90], corroborated by ['unique_artwork_viewers', 'favourites'].",
+            "key_comparison": {
+              "old_date": "2026-10-14",
+              "new_date": "2026-10-15",
+              "old_value": 40,
+              "new_value": 80,
+              "absolute_change": 40,
+              "percentage_change": 100.0,
+              "status": "ok",
+              "calculation": "80 - 40 = +40; (80 - 40) / 40 \u00d7 100 = +100.0%"
+            },
+            "supporting_metrics": [
+              {
+                "metric": "unique_artwork_viewers",
+                "old_value": 30,
+                "new_value": 45,
+                "absolute_change": 15,
+                "percentage_change": 50.0,
+                "status": "ok",
+                "calculation": "45 - 30 = +15; (45 - 30) / 30 \u00d7 100 = +50.0%",
+                "qualifies_as_support": true,
+                "reason": "meets percentage and absolute minimums"
+              },
+              {
+                "metric": "favourites",
+                "old_value": 5,
+                "new_value": 12,
+                "absolute_change": 7,
+                "percentage_change": 140.0,
+                "status": "ok",
+                "calculation": "12 - 5 = +7; (12 - 5) / 5 \u00d7 100 = +140.0%",
+                "qualifies_as_support": true,
+                "reason": "meets percentage and absolute minimums"
+              },
+              {
+                "metric": "inquiries",
+                "old_value": 0,
+                "new_value": 0,
+                "absolute_change": 0,
+                "percentage_change": null,
+                "status": "zero_baseline",
+                "calculation": "0 - 0 = +0; percentage change undefined because the baseline is 0, so only the absolute change is reported.",
+                "qualifies_as_support": false,
+                "reason": "did not increase"
+              }
+            ],
+            "criteria": [
+              {
+                "rule": "complete_series",
+                "passed": true,
+                "detail": "4 processed days, no missing values"
+              },
+              {
+                "rule": "min_increase_pct",
+                "passed": true,
+                "detail": "Largest day-over-day increase 2026-10-14\u21922026-10-15: 40\u219280 (+100.0%) vs minimum 30.0%"
+              },
+              {
+                "rule": "min_absolute_change",
+                "passed": true,
+                "detail": "Increase +40 vs minimum 10 for artwork_views"
+              },
+              {
+                "rule": "min_later_days",
+                "passed": true,
+                "detail": "2 processed day(s) after the jump vs minimum 2"
+              },
+              {
+                "rule": "min_gain_retained",
+                "passed": true,
+                "detail": "Later values [76, 90] keep ['90%', '125%'] of the +40 increase (need \u2265 50% on every later day)"
+              },
+              {
+                "rule": "corroboration",
+                "passed": true,
+                "detail": "Qualifying supporting metrics: ['unique_artwork_viewers', 'favourites']"
+              }
+            ],
+            "limitations": [
+              "'higher-confidence' and 'moderate-confidence' are qualitative evidence-strength labels (how many metrics corroborate the pattern), not statistical confidence levels or probabilities."
+            ],
+            "suggested_handling": "candidate_insight"
+          },
+          {
+            "artwork_id": "A002",
+            "artwork_title": "Artwork A2",
+            "artist_id": "AR01",
+            "artist_name": "Artist A",
+            "metric": "artwork_views",
+            "daily": [
+              {
+                "date": "2026-10-14",
+                "value": 25,
+                "source_line": 4
+              },
+              {
+                "date": "2026-10-15",
+                "value": 35,
+                "source_line": 11
+              },
+              {
+                "date": "2026-10-16",
+                "value": 32,
+                "source_line": 18
+              },
+              {
+                "date": "2026-10-17",
+                "value": 38,
+                "source_line": 25
+              }
+            ],
+            "category": "sustained_growth",
+            "evidence_strength": "moderate-confidence",
+            "explanation": "Increase 25\u219235 (+40.0%) maintained on later days [32, 38], corroborated by unique_artwork_viewers only.",
+            "key_comparison": {
+              "old_date": "2026-10-14",
+              "new_date": "2026-10-15",
+              "old_value": 25,
+              "new_value": 35,
+              "absolute_change": 10,
+              "percentage_change": 40.0,
+              "status": "ok",
+              "calculation": "35 - 25 = +10; (35 - 25) / 25 \u00d7 100 = +40.0%"
+            },
+            "supporting_metrics": [
+              {
+                "metric": "unique_artwork_viewers",
+                "old_value": 20,
+                "new_value": 26,
+                "absolute_change": 6,
+                "percentage_change": 30.0,
+                "status": "ok",
+                "calculation": "26 - 20 = +6; (26 - 20) / 20 \u00d7 100 = +30.0%",
+                "qualifies_as_support": true,
+                "reason": "meets percentage and absolute minimums"
+              },
+              {
+                "metric": "favourites",
+                "old_value": 3,
+                "new_value": 4,
+                "absolute_change": 1,
+                "percentage_change": 33.3,
+                "status": "ok",
+                "calculation": "4 - 3 = +1; (4 - 3) / 3 \u00d7 100 = +33.3%",
+                "qualifies_as_support": false,
+                "reason": "increase +1 below minimum 3"
+              },
+              {
+                "metric": "inquiries",
+                "old_value": 0,
+                "new_value": 0,
+                "absolute_change": 0,
+                "percentage_change": null,
+                "status": "zero_baseline",
+                "calculation": "0 - 0 = +0; percentage change undefined because the baseline is 0, so only the absolute change is reported.",
+                "qualifies_as_support": false,
+                "reason": "did not increase"
+              }
+            ],
+            "criteria": [
+              {
+                "rule": "complete_series",
+                "passed": true,
+                "detail": "4 processed days, no missing values"
+              },
+              {
+                "rule": "min_increase_pct",
+                "passed": true,
+                "detail": "Largest day-over-day increase 2026-10-14\u21922026-10-15: 25\u219235 (+40.0%) vs minimum 30.0%"
+              },
+              {
+                "rule": "min_absolute_change",
+                "passed": true,
+                "detail": "Increase +10 vs minimum 10 for artwork_views"
+              },
+              {
+                "rule": "min_later_days",
+                "passed": true,
+                "detail": "2 processed day(s) after the jump vs minimum 2"
+              },
+              {
+                "rule": "min_gain_retained",
+                "passed": true,
+                "detail": "Later values [32, 38] keep ['70%', '130%'] of the +10 increase (need \u2265 50% on every later day)"
+              },
+              {
+                "rule": "corroboration",
+                "passed": true,
+                "detail": "Qualifying supporting metrics: ['unique_artwork_viewers']"
+              }
+            ],
+            "limitations": [
+              "'higher-confidence' and 'moderate-confidence' are qualitative evidence-strength labels (how many metrics corroborate the pattern), not statistical confidence levels or probabilities."
+            ],
+            "suggested_handling": "candidate_insight"
+          },
+          {
+            "artwork_id": "B001",
+            "artwork_title": "Artwork B1",
+            "artist_id": "AR02",
+            "artist_name": "Artist B",
+            "metric": "artwork_views",
+            "daily": [
+              {
+                "date": "2026-10-14",
+                "value": 30,
+                "source_line": 5
+              },
+              {
+                "date": "2026-10-15",
+                "value": 45,
+                "source_line": 12
+              },
+              {
+                "date": "2026-10-16",
+                "value": 32,
+                "source_line": 19
+              },
+              {
+                "date": "2026-10-17",
+                "value": 31,
+                "source_line": 26
+              }
+            ],
+            "category": "temporary_spike",
+            "evidence_strength": null,
+            "explanation": "One-day increase 30\u219245 (+50.0%) was not maintained: later values [32, 31] gave back more than half of it. Not sustained growth.",
+            "key_comparison": {
+              "old_date": "2026-10-14",
+              "new_date": "2026-10-15",
+              "old_value": 30,
+              "new_value": 45,
+              "absolute_change": 15,
+              "percentage_change": 50.0,
+              "status": "ok",
+              "calculation": "45 - 30 = +15; (45 - 30) / 30 \u00d7 100 = +50.0%"
+            },
+            "supporting_metrics": [
+              {
+                "metric": "unique_artwork_viewers",
+                "old_value": 23,
+                "new_value": 24,
+                "absolute_change": 1,
+                "percentage_change": 4.3,
+                "status": "ok",
+                "calculation": "24 - 23 = +1; (24 - 23) / 23 \u00d7 100 = +4.3%",
+                "qualifies_as_support": false,
+                "reason": "increase +1 below minimum 5"
+              },
+              {
+                "metric": "favourites",
+                "old_value": 3,
+                "new_value": 4,
+                "absolute_change": 1,
+                "percentage_change": 33.3,
+                "status": "ok",
+                "calculation": "4 - 3 = +1; (4 - 3) / 3 \u00d7 100 = +33.3%",
+                "qualifies_as_support": false,
+                "reason": "increase +1 below minimum 3"
+              },
+              {
+                "metric": "inquiries",
+                "old_value": 0,
+                "new_value": 0,
+                "absolute_change": 0,
+                "percentage_change": null,
+                "status": "zero_baseline",
+                "calculation": "0 - 0 = +0; percentage change undefined because the baseline is 0, so only the absolute change is reported.",
+                "qualifies_as_support": false,
+                "reason": "did not increase"
+              }
+            ],
+            "criteria": [
+              {
+                "rule": "complete_series",
+                "passed": true,
+                "detail": "4 processed days, no missing values"
+              },
+              {
+                "rule": "min_increase_pct",
+                "passed": true,
+                "detail": "Largest day-over-day increase 2026-10-14\u21922026-10-15: 30\u219245 (+50.0%) vs minimum 30.0%"
+              },
+              {
+                "rule": "min_absolute_change",
+                "passed": true,
+                "detail": "Increase +15 vs minimum 10 for artwork_views"
+              },
+              {
+                "rule": "min_later_days",
+                "passed": true,
+                "detail": "2 processed day(s) after the jump vs minimum 2"
+              },
+              {
+                "rule": "min_gain_retained",
+                "passed": false,
+                "detail": "Later values [32, 31] keep ['13%', '7%'] of the +15 increase (need \u2265 50% on every later day)"
+              }
+            ],
+            "limitations": [],
+            "suggested_handling": "qualify_or_withhold"
+          },
+          {
+            "artwork_id": "B002",
+            "artwork_title": "Artwork B2",
+            "artist_id": "AR02",
+            "artist_name": "Artist B",
+            "metric": "artwork_views",
+            "daily": [
+              {
+                "date": "2026-10-14",
+                "value": 20,
+                "source_line": 6
+              },
+              {
+                "date": "2026-10-15",
+                "value": 21,
+                "source_line": 13
+              },
+              {
+                "date": "2026-10-16",
+                "value": 20,
+                "source_line": 20
+              },
+              {
+                "date": "2026-10-17",
+                "value": 20,
+                "source_line": 27
+              }
+            ],
+            "category": "stable",
+            "evidence_strength": null,
+            "explanation": "Stable engagement [20, 21, 20, 20]; no trend to report.",
+            "key_comparison": null,
+            "supporting_metrics": [],
+            "criteria": [
+              {
+                "rule": "complete_series",
+                "passed": true,
+                "detail": "4 processed days, no missing values"
+              },
+              {
+                "rule": "min_increase_pct",
+                "passed": false,
+                "detail": "Largest day-over-day increase 2026-10-14\u21922026-10-15: 20\u219221 (+5.0%) vs minimum 30.0%"
+              },
+              {
+                "rule": "stable_tolerance",
+                "passed": true,
+                "detail": "Values [20, 21, 20, 20], average 20.25; every day within 10% of average: True"
+              }
+            ],
+            "limitations": [],
+            "suggested_handling": "suppress"
+          },
+          {
+            "artwork_id": "C001",
+            "artwork_title": "Artwork C1",
+            "artist_id": "AR03",
+            "artist_name": "Artist C",
+            "metric": "artwork_views",
+            "daily": [
+              {
+                "date": "2026-10-14",
+                "value": 0,
+                "source_line": 7
+              },
+              {
+                "date": "2026-10-15",
+                "value": 10,
+                "source_line": 14
+              },
+              {
+                "date": "2026-10-16",
+                "value": 9,
+                "source_line": 21
+              },
+              {
+                "date": "2026-10-17",
+                "value": 11,
+                "source_line": 28
+              }
+            ],
+            "category": "zero_baseline_change",
+            "evidence_strength": null,
+            "explanation": "Increase from 0 to 10 (+10 absolute) between 2026-10-14 and 2026-10-15; percentage undefined. All processed values: [0, 10, 9, 11].",
+            "key_comparison": {
+              "old_date": "2026-10-14",
+              "new_date": "2026-10-15",
+              "old_value": 0,
+              "new_value": 10,
+              "absolute_change": 10,
+              "percentage_change": null,
+              "status": "zero_baseline",
+              "calculation": "10 - 0 = +10; percentage change undefined because the baseline is 0, so only the absolute change is reported."
+            },
+            "supporting_metrics": [
+              {
+                "metric": "unique_artwork_viewers",
+                "old_value": 0,
+                "new_value": 8,
+                "absolute_change": 8,
+                "percentage_change": null,
+                "status": "zero_baseline",
+                "calculation": "8 - 0 = +8; percentage change undefined because the baseline is 0, so only the absolute change is reported.",
+                "qualifies_as_support": true,
+                "reason": "meets absolute minimum (percentage undefined from zero baseline)"
+              },
+              {
+                "metric": "favourites",
+                "old_value": 0,
+                "new_value": 1,
+                "absolute_change": 1,
+                "percentage_change": null,
+                "status": "zero_baseline",
+                "calculation": "1 - 0 = +1; percentage change undefined because the baseline is 0, so only the absolute change is reported.",
+                "qualifies_as_support": false,
+                "reason": "increase +1 below minimum 3"
+              },
+              {
+                "metric": "inquiries",
+                "old_value": 0,
+                "new_value": 0,
+                "absolute_change": 0,
+                "percentage_change": null,
+                "status": "zero_baseline",
+                "calculation": "0 - 0 = +0; percentage change undefined because the baseline is 0, so only the absolute change is reported.",
+                "qualifies_as_support": false,
+                "reason": "did not increase"
+              }
+            ],
+            "criteria": [
+              {
+                "rule": "complete_series",
+                "passed": true,
+                "detail": "4 processed days, no missing values"
+              },
+              {
+                "rule": "zero_baseline",
+                "passed": true,
+                "detail": "Starting value is 0, so percentage growth is undefined."
+              }
+            ],
+            "limitations": [
+              "Percentage growth from a zero baseline is undefined; absolute change only."
+            ],
+            "suggested_handling": "qualify_or_withhold"
+          },
+          {
+            "artwork_id": "C002",
+            "artwork_title": "Artwork C2",
+            "artist_id": "AR03",
+            "artist_name": "Artist C",
+            "metric": "artwork_views",
+            "daily": [
+              {
+                "date": "2026-10-14",
+                "value": 15,
+                "source_line": 8
+              },
+              {
+                "date": "2026-10-15",
+                "value": 20,
+                "source_line": 15
+              },
+              {
+                "date": "2026-10-16",
+                "value": 19,
+                "source_line": 22
+              },
+              {
+                "date": "2026-10-17",
+                "value": 18,
+                "source_line": 29
+              }
+            ],
+            "category": "weak_signal",
+            "evidence_strength": null,
+            "explanation": "Increase 15\u219220 (+33.3%) is only +5 events, below the minimum of 10. Too small to treat as meaningful.",
+            "key_comparison": {
+              "old_date": "2026-10-14",
+              "new_date": "2026-10-15",
+              "old_value": 15,
+              "new_value": 20,
+              "absolute_change": 5,
+              "percentage_change": 33.3,
+              "status": "ok",
+              "calculation": "20 - 15 = +5; (20 - 15) / 15 \u00d7 100 = +33.3%"
+            },
+            "supporting_metrics": [
+              {
+                "metric": "unique_artwork_viewers",
+                "old_value": 12,
+                "new_value": null,
+                "absolute_change": null,
+                "percentage_change": null,
+                "status": "unavailable",
+                "calculation": "Comparison unavailable: at least one value is missing (unknown, not zero).",
+                "qualifies_as_support": null,
+                "reason": "unknown: value missing, so support cannot be verified"
+              },
+              {
+                "metric": "favourites",
+                "old_value": 1,
+                "new_value": 2,
+                "absolute_change": 1,
+                "percentage_change": 100.0,
+                "status": "ok",
+                "calculation": "2 - 1 = +1; (2 - 1) / 1 \u00d7 100 = +100.0%",
+                "qualifies_as_support": false,
+                "reason": "increase +1 below minimum 3"
+              },
+              {
+                "metric": "inquiries",
+                "old_value": 0,
+                "new_value": 0,
+                "absolute_change": 0,
+                "percentage_change": null,
+                "status": "zero_baseline",
+                "calculation": "0 - 0 = +0; percentage change undefined because the baseline is 0, so only the absolute change is reported.",
+                "qualifies_as_support": false,
+                "reason": "did not increase"
+              }
+            ],
+            "criteria": [
+              {
+                "rule": "complete_series",
+                "passed": true,
+                "detail": "4 processed days, no missing values"
+              },
+              {
+                "rule": "min_increase_pct",
+                "passed": true,
+                "detail": "Largest day-over-day increase 2026-10-14\u21922026-10-15: 15\u219220 (+33.3%) vs minimum 30.0%"
+              },
+              {
+                "rule": "min_absolute_change",
+                "passed": false,
+                "detail": "Increase +5 vs minimum 10 for artwork_views"
+              },
+              {
+                "rule": "stable_tolerance",
+                "passed": false,
+                "detail": "Values [15, 20, 19, 18], average 18.00; every day within 10% of average: False"
+              }
+            ],
+            "limitations": [
+              "unique_artwork_viewers unknown on the comparison days; its support could not be verified (missing is not zero)."
+            ],
+            "suggested_handling": "qualify_or_withhold"
+          }
+        ],
+        "limitations": [
+          "Patterns come from configurable screening heuristics, not statistical significance tests.",
+          "'higher-confidence' and 'moderate-confidence' are qualitative evidence-strength labels (how many metrics corroborate the pattern), not statistical confidence levels or probabilities.",
+          "Engagement data shows what happened, not why; it does not establish causality, purchase intent or sales outcomes."
+        ]
+      },
+      "duration_ms": 15
+    },
+    {
+      "step": 5,
+      "kind": "model_turn",
+      "title": "Claude turn 3: tool_use",
+      "tool": null,
+      "arguments": null,
+      "detail": "",
+      "result": null,
+      "duration_ms": 12271
+    },
+    {
+      "step": 6,
+      "kind": "tool_call",
+      "title": "validate_evidence",
+      "tool": "validate_evidence",
+      "arguments": {
+        "insight": "draft insight for A001"
+      },
+      "detail": "INS-A001-SUSTAINED_GROWTH-20261014_20261015: valid",
+      "result": {
+        "insight_id": "INS-A001-SUSTAINED_GROWTH-20261014_20261015",
+        "valid": true,
+        "error_count": 0
+      },
+      "duration_ms": 15
+    },
+    {
+      "step": 7,
+      "kind": "tool_call",
+      "title": "validate_evidence",
+      "tool": "validate_evidence",
+      "arguments": {
+        "insight": "draft insight for A002"
+      },
+      "detail": "INS-A002-SUSTAINED_GROWTH-20261014_20261015: valid",
+      "result": {
+        "insight_id": "INS-A002-SUSTAINED_GROWTH-20261014_20261015",
+        "valid": true,
+        "error_count": 0
+      },
+      "duration_ms": 9
+    },
+    {
+      "step": 8,
+      "kind": "tool_call",
+      "title": "validate_evidence",
+      "tool": "validate_evidence",
+      "arguments": {
+        "insight": "draft insight for B001"
+      },
+      "detail": "INS-B001-TEMPORARY_SPIKE-20261014_20261015: valid",
+      "result": {
+        "insight_id": "INS-B001-TEMPORARY_SPIKE-20261014_20261015",
+        "valid": true,
+        "error_count": 0
+      },
+      "duration_ms": 5
+    },
+    {
+      "step": 9,
+      "kind": "model_turn",
+      "title": "Claude turn 4: end_turn",
+      "tool": null,
+      "arguments": null,
+      "detail": "",
+      "result": null,
+      "duration_ms": 12261
+    },
+    {
+      "step": 10,
+      "kind": "final",
+      "title": "Claude returned findings",
+      "tool": null,
+      "arguments": null,
+      "detail": "3 proposed insight(s), 3 artwork(s) not surfaced",
+      "result": null,
+      "duration_ms": null
+    },
+    {
+      "step": 11,
+      "kind": "gate",
+      "title": "Mandatory evidence validation",
+      "tool": null,
+      "arguments": null,
+      "detail": "3 published, 0 withheld, 0 next step(s) replaced with the approved safe wording",
+      "result": {
+        "next_step_substitutions": []
+      },
+      "duration_ms": null
+    }
+  ],
+  "followups": []
+}
