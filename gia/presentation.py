@@ -7,18 +7,51 @@ here makes an API call. These helpers only reshape verified values for display; 
 
 from __future__ import annotations
 
-from gia import explain, tools
+from gia import catalog, explain, tools
 
-# Supporting-measure labels: what each validated status means, without implying contradiction.
+# Supporting-measure labels: what each validated status means, without implying contradiction. The three groups
+# use the same words as the locked guided answer "What other signals support—or challenge—this pattern?".
 SUPPORT_STATUS = {
-    "supports": ("✓", "Supports"),                 # rose enough on the same day to count
-    "insufficient": ("–", "Rose, too little to count"),
-    "no_rise": ("–", "No rise"),
-    "missing": ("?", "Not recorded"),
+    "supports": ("✓", "Supports it"),              # rose enough on the same day to count
+    "insufficient": ("–", "Weak: rose too little to count"),
+    "no_rise": ("–", "Weak: no rise"),
+    "missing": ("?", "Missing: not recorded"),
 }
-SUPPORT_HELP = ("Other measures on the same two days. “Supports” means it rose enough to count under the "
-                "screening rules; “too little” and “no rise” mean it did not add support (this is not evidence "
-                "against the pattern); “not recorded” means the value is unknown, never zero.")
+SUPPORT_HELP = ("Other measures on the same two days. “Supports it” means it rose enough to count under the "
+                "screening rules; “Weak” means it did not add support (this is not evidence against the pattern); "
+                "“Missing” means the value is unknown, never zero.")
+SUPPORT_LEGEND = "✓ Supports it · – Weak · ? Missing"
+SUPPORT_LEGEND_HELP = ("**Supports it:** another measure rose enough on the same day to count as support.  \n"
+                       "**Weak or missing:** another measure rose too little, did not rise, or is not recorded. It "
+                       "adds no support, but it is not evidence against the pattern.  \n"
+                       "**Against it:** evidence that contradicts the pattern, such as a jump that fell back on later "
+                       "days. It is listed under Explore insight when the screening checks find it.")
+
+# Manager-friendly wording for the deterministic classifications (M10). The technical terms are unchanged and
+# stay visible in tooltips and in the detailed evidence; these labels never imply a statistical probability.
+STRENGTH_PLAIN = {
+    "higher-confidence": "Well supported",
+    "moderate-confidence": "Partly supported",
+    "qualified": "For awareness only",
+}
+STRENGTH_COLOUR = {"higher-confidence": "green", "moderate-confidence": "blue", "qualified": "orange"}
+CATEGORY_PLAIN = {
+    "sustained_growth": "Sustained increase",
+    "temporary_spike": "One-day spike",
+    "weak_signal": "Small or unsupported change",
+    "emerging_increase": "Recent increase (not yet confirmed)",
+    "zero_baseline_change": "Rose from zero (small numbers)",
+    "insufficient_evidence": "Not enough data to confirm",
+    "stable": "Steady",
+    "no_clear_pattern": "No clear pattern",
+}
+
+
+def rating_help(strength: str, category: str) -> str:
+    """Tooltip for the plain-language badges: what the rating means and its technical name."""
+    return (f"**{STRENGTH_PLAIN[strength]}** (technical rating: {strength}). {explain.STRENGTH_TEXT[strength]}  \n"
+            f"**{CATEGORY_PLAIN[category]}** (technical classification: {explain.CATEGORY_LABELS[category]}).  \n"
+            "Ratings come from transparent screening rules, not from statistical tests or probabilities.")
 
 
 def _status(s: dict) -> str:
@@ -91,9 +124,14 @@ def evidence_summary(entry: dict, ev: dict) -> dict:
     kc = pattern.get("key_comparison")
     overview = tools.get_processed_data()
     days = overview["processed_dates"]
-    lines = [f"**Source:** {ev['context']['Data source']} · {len(days)} processed days "
+    strength = insight["confidence"]
+    lines = [f"**Evidence rating:** {STRENGTH_PLAIN[strength]} · {CATEGORY_PLAIN[pattern['category']]} "
+             f"(technical: {strength}, {explain.CATEGORY_LABELS[pattern['category']].lower()}). "
+             f"{explain.STRENGTH_TEXT[strength]}",
+             f"**Source:** {ev['context']['Data source']} · {len(days)} processed days "
              f"({explain.fmt_date(days[0])}–{explain.fmt_date(days[-1])}) · {ev['context']['Artwork']} · "
-             f"{ev['context']['Artist']}"]
+             f"{ev['context']['Artist']} · shown as *{catalog.title(pattern['artwork_id'])}* (fictional sample "
+             "catalog)"]
     if kc:
         lines.append(f"**Key change:** {explain.METRIC_NAMES[pattern['metric']].lower()} went from "
                      f"{explain.fmt_value(kc['old_value'])} on {explain.fmt_date_long(kc['old_date'])} to "

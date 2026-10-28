@@ -192,9 +192,11 @@ def test_cards_identical_in_live_and_demo(monkeypatch, tmp_path):
     assert not at_live.exception and not at_demo.exception
     assert card_text(at_live) == card_text(at_demo)
     titles = [t for t in card_text(at_live) if t[5:6].isdigit()]
-    assert titles == ["#### 1. Artwork A1: views doubled on Oct 15 and stayed higher",
-                      "#### 2. Artwork A2: views up on Oct 15 and maintained",
-                      "#### 3. Artwork B1: one-day spike that did not hold"]
+    assert titles == ["#### 1. Harbour at First Light", "#### 2. Salt Study, Grey", "#### 3. Red Interval"]
+    headlines = [m.value for m in at_live.markdown if m.value in (
+        "**Views doubled on Oct 15 and stayed higher**", "**Views up on Oct 15 and maintained**",
+        "**One-day spike that did not hold**")]
+    assert len(headlines) == 3                     # the agent's validated headline, without the source-label prefix
     assert any("Recorded AI investigation" in i.value for i in at_demo.info)
     assert not any("Recorded AI investigation" in i.value for i in at_live.info)
 
@@ -215,4 +217,4 @@ def test_model_summary_is_not_displayed(monkeypatch):
     result, _ = run([final([A1])])
     at = render(monkeypatch, result, "live")
     text = " ".join(m.value for m in at.markdown)
-    assert "Test summary." not in text and "Analysis overview." in text
+    assert "Test summary." not in text and "##### Daily briefing" in text

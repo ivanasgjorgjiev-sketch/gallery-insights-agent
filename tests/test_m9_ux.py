@@ -44,10 +44,10 @@ def tiles(case):
 def test_support_labels_are_accurate_and_never_contradictory():
     a2 = tiles("A2")
     assert {k: t["note"] for k, t in a2.items()} == {
-        "Artwork views": "Key change", "Daily unique viewers": "✓ Supports",
-        "Favourites": "– Rose, too little to count", "Inquiries": "– No rise"}
+        "Artwork views": "Key change", "Daily unique viewers": "✓ Supports it",
+        "Favourites": "– Weak: rose too little to count", "Inquiries": "– Weak: no rise"}
     c2 = tiles("C2")["Daily unique viewers"]
-    assert c2["note"] == "? Not recorded" and c2["value"] == "12 → not recorded" and c2["delta"] == "no comparison"
+    assert c2["note"] == "? Missing: not recorded" and c2["value"] == "12 → not recorded" and c2["delta"] == "no comparison"
     every_label = {lab for _, lab in presentation.SUPPORT_STATUS.values()} | {presentation.SUPPORT_HELP}
     assert not any(w in " ".join(every_label).lower() for w in ("contradict", "against it", "challenge"))
     assert "not evidence against" in presentation.SUPPORT_HELP
@@ -102,7 +102,7 @@ def test_default_card_is_compact(monkeypatch, offline):
     assert len(at.get("vega_lite_chart")) == 3 and len(at.metric) == 12
     assert [m.label for m in at.metric] == TILE_ORDER * 3                       # four tiles per card, in order
     assert [c.value for c in at.caption if c.value.startswith(("Key change", "✓", "–", "?"))][:4] == [
-        "Key change", "✓ Supports", "✓ Supports", "– No rise"]
+        "Key change", "✓ Supports it", "✓ Supports it", "– Weak: no rise"]
     assert [e.label for e in at.expander if e.label.startswith("Limitations")] == ["Limitations (2)"] * 3
     assert not [e for e in at.expander if e.label in QUESTIONS]                 # Explore is closed
     assert not any(m.value == "##### Evidence" for m in at.markdown)            # evidence is closed
@@ -168,7 +168,7 @@ def test_full_journey_explore_evidence_feedback_completes(monkeypatch, tmp_path,
     assert not at.session_state["review"].complete
     at.button(key=f"feedback-not_useful-{b1}").click().run(timeout=30)
     assert at.session_state["review"].complete
-    assert any("review complete" in s.value and "Artwork B1" in s.value for s in at.success)
+    assert any("review complete" in s.value and "Red Interval" in s.value for s in at.success)
     assert any(review.NOT_AUTHORISATION_NOTE in s.value for s in at.success)
     assert any("✓ Reviewed" in m.value for m in at.markdown)
     assert not at.exception
@@ -196,7 +196,7 @@ def test_polish_guidance_once_no_repeated_captions_compact_header(monkeypatch, o
     assert not any(c.startswith("All four measures") for c in captions)
     [progress] = [i.value for i in at.info if i.value.startswith("**Review progress:**")]
     assert "View evidence" in progress and "any one is enough" in progress and "this session only" in progress
-    overview = next(m for m in at.markdown if m.value.startswith("**Analysis overview.**"))
+    overview = next(m for m in at.markdown if m.value == "##### Daily briefing")     # M10: replaces the overview
     assert "ordered by evidence strength" in overview.proto.help                     # still available on demand
     assert not any(m.value in ("#### Data status", "#### Daily engagement analysis") for m in at.markdown)
     assert at.button[0].label == "Analyze Daily Engagement"

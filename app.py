@@ -9,13 +9,16 @@ GIA_MODE (server-side setting, default "demo"):
 - live: real Claude tool calling, with per-response, per-analysis and per-session limits.
 """
 
+import base64
 import datetime as dt
+import html
 
 import anthropic
 import pandas as pd
 import streamlit as st
 
-from gia import agent, config, diagnostics, evidence, explain, followup, guided, presentation, review, snapshot
+from gia import (actions, agent, briefing, catalog, config, diagnostics, evidence, explain, followup, guided,
+                 presentation, review, snapshot)
 from gia.data import DataValidationError, load_processed_data
 from gia.display_names import edition_label, gallery_name
 
@@ -47,11 +50,37 @@ def step_line(step: agent.TraceStep) -> str:
     return line
 
 
-STRENGTH_BADGES = {
-    "higher-confidence": ":green-badge[Higher-confidence]",
-    "moderate-confidence": ":blue-badge[Moderate-confidence]",
-    "qualified": ":orange-badge[Qualified signal]",
-}
+THUMBNAIL_PX = 72
+
+
+def artwork_name(pattern: dict) -> str:
+    """The fictional catalog title shown for an artwork (the source label when it is not in the catalog)."""
+    return catalog.title(pattern["artwork_id"], pattern["artwork_title"])
+
+
+def render_thumbnail(artwork_id: str, name: str) -> None:
+    """The artwork's local SVG thumbnail as an <img> with alt text; a neutral placeholder when there is none."""
+    svg = catalog.thumbnail_svg(artwork_id)
+    alt = html.escape(f"{name}: abstract thumbnail, {catalog.FICTIONAL_NOTE.lower()}", quote=True)
+    if svg is None:
+        st.markdown(f'<div role="img" aria-label="{alt}" style="width:{THUMBNAIL_PX}px;height:{THUMBNAIL_PX}px;'
+                    'border-radius:6px;background:rgba(128,128,128,.15);display:flex;align-items:center;'
+                    'justify-content:center;font-size:28px">🖼️</div>', unsafe_allow_html=True)
+        return
+    data = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    st.markdown(f'<img src="data:image/svg+xml;base64,{data}" alt="{alt}" width="{THUMBNAIL_PX}" '
+                f'height="{THUMBNAIL_PX}" style="border-radius:6px;display:block">', unsafe_allow_html=True)
+
+
+def agent_headline(insight: dict, pattern: dict) -> str:
+    """The agent's validated title without a leading "Artwork A1: " (the catalog title is already the heading).
+    Nothing else in the text changes."""
+    text = insight["title"]
+    prefix = f"{pattern['artwork_title']}: "
+    if text.startswith(prefix) and len(text) > len(prefix):
+        text = text[len(prefix):]
+        text = text[0].upper() + text[1:]
+    return text
 
 
 SERIES_COLOR = "#2a78d6"   # single series: one hue; the key jump is emphasised by size and a label, not a new colour
@@ -69,6 +98,7 @@ def render_key_metrics(pattern: dict) -> None:
             st.metric(t["label"], t["value"], delta=t["delta"], delta_color=t["delta_color"], help=t["help"],
                       delta_arrow="auto" if t["delta"][:1] in "+-" else "off")
             st.caption(t["note"])
+    st.caption(presentation.SUPPORT_LEGEND, help=presentation.SUPPORT_LEGEND_HELP)
 
 
 def render_trend_chart(pattern: dict) -> None:
@@ -150,7 +180,7 @@ def show_analysis(result: agent.AnalysisResult) -> None:
 
 
 def render_feedback(entry: dict, state: review.ReviewState) -> None:
-    insight_id, title = entry["insight_id"], entry["pattern"]["artwork_title"]
+    insight_id, title = entry["insight_id"], artwork_name(entry["pattern"])
     current = state.reviews[insight_id]
     st.markdown("**Was this insight useful?**")
     cols = st.columns([3, 2, 3])
@@ -181,6 +211,49 @@ def render_guided(entry: dict) -> None:
         st.caption("These explanations are generated from this insight's verified data. No AI request is made.")
 
 
+def render_suggested_followup(entry: dict) -> None:
+    """The rule-based suggestion for this insight. Valid evidence that supports no specific suggestion gets a neutral
+    explanation; a failed check gets the unavailable notice instead (fail closed)."""
+    f = actions.suggest(entry)
+    st.markdown(f"**{actions.HEADING}** :gray[· {actions.NOTE}]")
+    if not f.shown:
+        st.caption(actions.UNAVAILABLE)
+    elif f.kind == "no_specific":
+        st.markdown(f"*{f.text}*")
+    else:
+        st.markdown(f.text)
+
+
+def render_briefing(result: agent.AnalysisResult) -> None:
+    """The daily briefing above the cards: published insights, artworks not surfaced and validation-withheld
+    drafts, kept apart. Built from the validated results; falls back to the plain overview if it cannot be."""
+    try:
+        b = briefing.build(result, data.processed_dates, data.excluded_dates)
+    except Exception:
+        st.markdown(f"**Analysis overview.** "
+                    f"{explain.overview(result.published, data.processed_dates, data.excluded_dates)}",
+                    help=briefing.ORDER_HELP)
+        return
+    with st.container(border=True):
+        st.markdown("##### Daily briefing", help=briefing.ORDER_HELP)
+        st.caption(b.period)
+        if b.chips:
+            st.markdown(" ".join(f":{colour}-badge[{label}]" for label, colour in b.chips))
+        if result.published:
+            st.markdown("\n".join(f"- {line}" for line in b.lines))
+            if b.dropped:
+                st.caption(briefing.UNVERIFIED_LINE)
+        else:
+            st.markdown("No finding met the evidence bar, so no insight is published.")
+        if b.not_prioritised:
+            st.caption(f"**Not prioritised (not published):** {b.not_prioritised}. Details under *How the agent "
+                       "worked → Not surfaced*.")
+        if b.not_published:
+            st.caption(f"**Found but not published in this analysis:** {b.not_published}.")
+        if b.withheld:
+            st.caption(f"**Withheld by validation:** {b.withheld}")
+
+
 def toggle(name: str, insight_id: str) -> None:
     st.session_state.setdefault(name, set()).symmetric_difference_update({insight_id})
 
@@ -190,8 +263,17 @@ def render_insight_card(rank: int, entry: dict, state: review.ReviewState) -> No
     evidence_open = insight_id in st.session_state.setdefault("evidence_open", set())
     explore_open = insight_id in st.session_state.setdefault("explore_open", set())
     progress = state.reviews[insight_id]
+    name = artwork_name(pattern)
     with st.container(border=True):
-        st.markdown(f"#### {rank}. {ins['title']}")
+        thumb_col, head_col = st.columns([1, 9], vertical_alignment="center")
+        with thumb_col:
+            render_thumbnail(pattern["artwork_id"], name)
+        with head_col:
+            st.markdown(f"#### {rank}. {name}")
+            st.caption(f"{catalog.artist(pattern['artist_id'], pattern['artist_name'])}"
+                       + (f" · {catalog.medium(pattern['artwork_id'])}" if catalog.medium(pattern["artwork_id"]) else "")
+                       + f" · {catalog.FICTIONAL_NOTE} · source: {pattern['artwork_title']} ({pattern['artwork_id']})",
+                       help=catalog.CATALOG_HELP)
         status = []
         if progress.evidence_viewed and progress.feedback:
             status.append(":green-badge[✓ Reviewed]")
@@ -200,12 +282,16 @@ def render_insight_card(rank: int, entry: dict, state: review.ReviewState) -> No
                 status.append(":violet-badge[Evidence viewed]")
             if progress.feedback:
                 status.append(f":violet-badge[Rated: {review.FEEDBACK_OPTIONS[progress.feedback]}]")
-        st.markdown(" ".join([STRENGTH_BADGES[ins["confidence"]],
-                              f":gray-badge[{explain.CATEGORY_LABELS[pattern['category']]}]"] + status))
-        st.caption(f"{pattern['artwork_title']} ({pattern['artwork_id']}) · {pattern['artist_name']}")
+        strength = ins["confidence"]
+        st.markdown(" ".join([f":{presentation.STRENGTH_COLOUR[strength]}-badge"
+                              f"[{presentation.STRENGTH_PLAIN[strength]}]",
+                              f":gray-badge[{presentation.CATEGORY_PLAIN[pattern['category']]}]"] + status),
+                    help=presentation.rating_help(strength, pattern["category"]))
+        st.markdown(f"**{agent_headline(ins, pattern)}**")
         render_key_metrics(pattern)
         render_trend_chart(pattern)
         st.markdown(f"**Why it may matter:** {ins['why_it_may_matter']}")
+        render_suggested_followup(entry)
         with st.expander(f"Limitations ({len(ins['limitations'])})"):
             st.markdown("\n".join(f"- {lim}" for lim in ins["limitations"]))
         explore_col, evidence_col, _ = st.columns([1, 1, 2])
@@ -438,9 +524,7 @@ if result:
         st.warning("The tool-call limit was reached; findings are based only on evidence gathered so far.")
 
     if not result.error:
-        st.markdown(f"**Analysis overview.** {explain.overview(result.published, data.processed_dates, data.excluded_dates)}",
-                    help="Insights are ordered by evidence strength: higher-confidence first, qualified signals last. "
-                         + explain.STRENGTH_NOTE)
+        render_briefing(result)
         if not result.published:
             st.info("No finding met the evidence bar. Nothing is presented rather than inventing an insight.")
         state = current_review()
@@ -448,7 +532,7 @@ if result:
             p = state.progress()
             useful = (f"Rated useful so far: {p['useful']} of {p['insights']} (this session only).")
             if p["complete"]:
-                titles = ", ".join(e["pattern"]["artwork_title"] for e in result.published
+                titles = ", ".join(artwork_name(e["pattern"]) for e in result.published
                                    if e["insight_id"] in p["completed_ids"])
                 st.success(f"✅ **Daily analysis review complete.** You viewed the evidence and recorded your "
                            f"feedback for: {titles}. Nothing has been sent or changed; any follow-up action is "
@@ -481,7 +565,9 @@ if result:
             if not result.not_surfaced:
                 st.caption("Every artwork with a reportable pattern was surfaced.")
             for n in result.not_surfaced:
-                st.markdown(f"**{n['artwork_title']} ({n['artwork_id']})** · {n['label']}  \n"
+                st.markdown(f"**{catalog.title(n['artwork_id'], n['artwork_title'])}** · source: "
+                            f"{n['artwork_title']} ({n['artwork_id']}) · "
+                            f"{presentation.CATEGORY_PLAIN.get(n['category'], n['label'])}  \n"
                             f"{n['explanation']}  \n*{n['why_not_shown']}*")
         with withheld_tab:
             st.caption("Drafts that fail validation are never shown as findings."

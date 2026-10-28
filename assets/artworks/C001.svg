@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Paper Moon: abstract thumbnail, fictional sample artwork">
+<title>Paper Moon: abstract thumbnail, fictional sample artwork</title>
+<rect width="120" height="120" fill="#f7f4ee"/>
+<circle cx="68" cy="52" r="11" fill="#d8e3ec" opacity="0.35"/>
+<circle cx="44" cy="34" r="31" fill="#d8e3ec" opacity="0.7"/>
+<circle cx="92" cy="55" r="15" fill="#d8e3ec" opacity="0.35"/>
+<circle cx="89" cy="90" r="30" fill="#d8e3ec" opacity="0.7"/>
+<path d="M8 66 C40 36 80 66 112 36" stroke="#1d2a44" stroke-width="2" fill="none"/>
+</svg>

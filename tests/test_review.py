@@ -129,10 +129,10 @@ def test_full_journey_in_app(monkeypatch, tmp_path, mode):
     click(at, f"evidence-{A1}")
     click(at, f"feedback-useful-{A1}")
     done = next(m for m in at.success if "review complete" in m.value)
-    assert "Artwork A1" in done.value and "Nothing has been sent or changed" in done.value
+    assert "Harbour at First Light" in done.value and "Nothing has been sent or changed" in done.value
     for word in ("approved", "authorised", "contacted", "sent to", "will"):
         assert word not in done.value.lower().replace("nothing has been sent", "")
-    saved = next(m for m in at.success if m.value.startswith("Feedback saved for the Artwork A1 insight"))
+    saved = next(m for m in at.success if m.value.startswith("Feedback saved for the Harbour at First Light insight"))
     assert "Useful / Worth investigating" in saved.value and "does not approve" in saved.value
     state = at.session_state["review"]
     assert state.reviews[A1].feedback == "useful" and state.reviews[A1].evidence_viewed

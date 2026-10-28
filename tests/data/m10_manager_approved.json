@@ -1,0 +1,63 @@
+{
+  "_note": "M10 wording lock. Suggested follow-ups are rule-based (gia/actions.py RULES). A1 and B1 keep the owner's approved wording; A2 and the recent-increase wording follow the owner's refinements of 2026-10-28. Change only with the owner's approval.",
+  "followups": {
+    "A1": {
+      "rule": "monitor_continuation",
+      "kind": "suggestion",
+      "text": "Consider keeping this artwork in view during the remaining fair days. Views increased and stayed elevated, with supporting increases in daily unique viewers and favourites. Review the next processed day to see whether that pattern continues."
+    },
+    "A2": {
+      "rule": "cautious_monitoring",
+      "kind": "suggestion",
+      "text": "Keep this artwork on your watch list as a possible sustained increase. Daily unique viewers support the pattern, while favourites provide limited additional support and inquiries did not increase. Reassess when more daily data is available."
+    },
+    "B1": {
+      "rule": "recurrence_watch",
+      "kind": "suggestion",
+      "text": "No immediate follow-up is suggested based on this temporary spike. Revisit the pattern if a new increase appears in subsequent data."
+    },
+    "C1": {
+      "rule": "context_only",
+      "kind": "suggestion",
+      "text": "Treat this as context rather than a trend, because it started from zero. Revisit it only if the increase continues in later processed data."
+    },
+    "C2": {
+      "rule": "insufficient_evidence",
+      "kind": "no_specific",
+      "text": "The available evidence does not support a specific follow-up suggestion: the change is too small to count under the screening rules."
+    },
+    "F1": {
+      "rule": "await_later_day",
+      "kind": "suggestion",
+      "text": "This increase is worth monitoring, but there is not yet enough processed data to determine whether it will continue."
+    },
+    "F2": {
+      "rule": "insufficient_evidence",
+      "kind": "no_specific",
+      "text": "The available evidence does not support a specific follow-up suggestion, because daily unique viewers are not recorded on one of the comparison days."
+    }
+  },
+  "briefing": {
+    "period": "Oct 14–Oct 17 · four processed fair days · Oct 18 excluded (not processed yet)",
+    "chips": [
+      [
+        "Two sustained increases",
+        "green"
+      ],
+      [
+        "One temporary spike",
+        "orange"
+      ],
+      [
+        "Three artworks not prioritised",
+        "gray"
+      ]
+    ],
+    "lines": [
+      "Strongest evidence: **Harbour at First Light** (Sustained increase · Well supported): views rose from 40 on Oct 14 to 80 on Oct 15 and stayed higher on every later processed day, with two other measures rising too.",
+      "**Salt Study, Grey** (Sustained increase · Partly supported): views rose from 25 on Oct 14 to 35 on Oct 15 and stayed higher on every later processed day, with one other measure rising too.",
+      "**Red Interval** (One-day spike · For awareness only): views jumped from 30 on Oct 14 to 45 on Oct 15, then fell back to 31 on Oct 17."
+    ],
+    "not_prioritised": "Quiet Grid (steady); Paper Moon (rose from zero on small numbers); Field Notes in Blue (change too small or not supported)"
+  }
+}

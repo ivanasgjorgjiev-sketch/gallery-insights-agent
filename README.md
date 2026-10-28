@@ -52,6 +52,13 @@ daily artwork views (processed days only) and one validated sentence. *Explore i
 questions (collapsed); *View evidence* shows a short summary first, with calculations, checks and source
 records on demand. See `M9_DECISIONS.md`.
 
+**Milestone 10 manager experience:** a daily briefing above the cards (published insights, artworks not
+prioritised and drafts withheld by validation, kept apart), plain-language evidence ratings (technical terms in
+tooltips and the evidence), a suggested follow-up per insight (approved templates, no action taken), and a
+fictional sample catalog with abstract thumbnails (`gia/catalog.py`, `assets/artworks/`, regenerated with
+`python scripts/make_artwork_thumbnails.py`). All of it is built from the validated results, checked before
+display and makes no API call; the analysis still uses only the source IDs. See `M10_DECISIONS.md`.
+
 Open-ended follow-up questions are not part of the MVP. Their implementation is kept and can be shown again
 locally with `GIA_ENABLE_FOLLOWUPS=1`; never set it on the public deployment. When they are on, any answer
 withheld in LIVE mode is recorded for offline investigation in the git-ignored `diagnostics/` folder.
