@@ -28,7 +28,7 @@ PATTERNS_CSV = m8.ROOT / "tests" / "data" / "m10_followup_patterns.csv"
 OVERCLAIM = re.compile(r"\b(likely|likelihood|probab\w*|significan\w*|certain\w*|guarantee\w*|predict\w*|"
                        r"collector\w*|buyer\w*|purchas\w*|sales?|sell\w*|pric\w*|discount\w*|contact\w*|"
                        r"caus\w*|because of)\b", re.IGNORECASE)
-RECORDING_SHA256 = "c83fb6370f1186af2830c6b8ac6c1c7b02452ca3560f8c008afa7d2ff558de8b"
+RECORDING_SHA256 = "fe706823aa16d0ccc3a047e25e639bd94d5df2e2a8de23d844baa180164077ec"
 
 
 def entry(case):

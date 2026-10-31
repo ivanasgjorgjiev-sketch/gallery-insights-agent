@@ -1,6 +1,6 @@
 {
   "snapshot_version": 1,
-  "recorded_at": "2026-10-26T21:17:37+00:00",
+  "recorded_at": "2026-10-31T18:53:20+00:00",
   "model": "claude-sonnet-5-5",
   "data_file": "daily_data.csv",
   "data_sha256": "dbf61490a4b7876ada6d131c43db10aa309a54624dbcab2fbf65759a8f9d9a2f",
@@ -8,9 +8,9 @@
   "model_turns": 4,
   "usage": {
     "input_tokens": 10,
-    "output_tokens": 3273,
-    "cache_read_input_tokens": 23696,
-    "cache_creation_input_tokens": 15630
+    "output_tokens": 3246,
+    "cache_read_input_tokens": 36097,
+    "cache_creation_input_tokens": 3207
   },
   "withheld_count": 0,
   "published": [
@@ -19,15 +19,14 @@
       "insight": {
         "signal_type": "sustained_growth",
         "artwork_id": "A001",
-        "title": "Artwork A1: views increased and stayed higher",
-        "observed_signal": "Artwork views rose from 40 to 80 between 2026-10-14 and 2026-10-15 and stayed higher on later processed days, with unique viewers and favourites also rising.",
-        "why_it_may_matter": "Corroborated by several metrics, this may indicate a genuine rise in interest in this artwork.",
+        "title": "Artwork A1 views rose and stayed higher",
+        "observed_signal": "Artwork views rose from 40 to 80 between 2026-10-14 and 2026-10-15 and stayed elevated on later processed days, with unique viewers and favourites also higher.",
+        "why_it_may_matter": "Corroborated increases across several metrics suggest a change in engagement worth the manager's awareness.",
         "suggested_next_step": "Review the engagement evidence and decide whether further investigation is worthwhile.",
         "confidence": "higher-confidence",
         "limitations": [
-          "Only four processed days; screening heuristics, not statistical tests.",
-          "Event counts are not distinct people; inquiries stayed at zero.",
-          "Data does not show why engagement changed."
+          "Based on only four processed days; excluded day 2026-10-18 is not considered.",
+          "Event counts are not distinct people and the data does not show why engagement changed."
         ],
         "metric_changes": [
           {
@@ -70,15 +69,15 @@
       "insight": {
         "signal_type": "sustained_growth",
         "artwork_id": "A002",
-        "title": "Artwork A2: views increased and stayed higher",
-        "observed_signal": "Artwork views rose from 25 to 35 between 2026-10-14 and 2026-10-15 and stayed higher on later processed days, with unique viewers also rising.",
-        "why_it_may_matter": "Only one other metric corroborates it, so this is a moderate signal worth a light look.",
+        "title": "Artwork A2 views rose and stayed higher",
+        "observed_signal": "Artwork views rose from 25 to 35 between 2026-10-14 and 2026-10-15 and stayed above the starting level on later processed days, with unique viewers also higher.",
+        "why_it_may_matter": "A modest increase corroborated by one other metric may merit light-touch awareness.",
         "suggested_next_step": "Review the engagement evidence and decide whether further investigation is worthwhile.",
         "confidence": "moderate-confidence",
         "limitations": [
-          "Only four processed days; screening heuristics, not statistical tests.",
-          "Favourites rise was below the support threshold and inquiries stayed at zero.",
-          "Event counts are not distinct people."
+          "Based on only four processed days; the increase is small in absolute terms.",
+          "Only unique viewers corroborate it; favourites did not meet the minimum change.",
+          "Event counts are not distinct people and the data does not show why engagement changed."
         ],
         "metric_changes": [
           {
@@ -111,14 +110,15 @@
       "insight": {
         "signal_type": "temporary_spike",
         "artwork_id": "B001",
-        "title": "Artwork B1: one-day views spike (awareness only)",
-        "observed_signal": "Artwork views rose from 30 to 45 between 2026-10-14 and 2026-10-15, then returned close to the earlier level on later processed days.",
-        "why_it_may_matter": "A one-day rise that was not maintained should not be read as growth.",
+        "title": "Artwork B1 one-day views spike (awareness only)",
+        "observed_signal": "Artwork views rose from 30 to 45 on 2026-10-15 but later days returned close to the starting level.",
+        "why_it_may_matter": "A one-day rise that did not persist is not evidence of growth.",
         "suggested_next_step": "",
         "confidence": "qualified",
         "limitations": [
-          "Not sustained; not corroborated by unique viewers, favourites or inquiries.",
-          "Only four processed days; event counts are not people."
+          "Increase was not maintained on later processed days, so it is not growth.",
+          "Unique viewers and favourites did not meet corroboration minimums.",
+          "Event counts are not distinct people."
         ],
         "metric_changes": [
           {
@@ -172,7 +172,7 @@
       "arguments": null,
       "detail": "",
       "result": null,
-      "duration_ms": 1737
+      "duration_ms": 1018
     },
     {
       "step": 2,
@@ -275,7 +275,7 @@
           "inquiries"
         ]
       },
-      "duration_ms": 16
+      "duration_ms": 6
     },
     {
       "step": 3,
@@ -285,7 +285,7 @@
       "arguments": null,
       "detail": "",
       "result": null,
-      "duration_ms": 1309
+      "duration_ms": 1308
     },
     {
       "step": 4,
@@ -909,7 +909,7 @@
           "Engagement data shows what happened, not why; it does not establish causality, purchase intent or sales outcomes."
         ]
       },
-      "duration_ms": 15
+      "duration_ms": 6
     },
     {
       "step": 5,
@@ -919,7 +919,7 @@
       "arguments": null,
       "detail": "",
       "result": null,
-      "duration_ms": 12271
+      "duration_ms": 8692
     },
     {
       "step": 6,
@@ -935,7 +935,7 @@
         "valid": true,
         "error_count": 0
       },
-      "duration_ms": 15
+      "duration_ms": 9
     },
     {
       "step": 7,
@@ -967,7 +967,7 @@
         "valid": true,
         "error_count": 0
       },
-      "duration_ms": 5
+      "duration_ms": 8
     },
     {
       "step": 9,
@@ -977,7 +977,7 @@
       "arguments": null,
       "detail": "",
       "result": null,
-      "duration_ms": 12261
+      "duration_ms": 8681
     },
     {
       "step": 10,
